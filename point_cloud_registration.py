@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
-from scipy.optimize import linear_sum_assignment
 
 from utils import *
 
@@ -43,7 +42,7 @@ def featureFilter(features1, features2, points1, points2):
     row = features1.shape[1]
     col = features2.shape[1]
 
-    num = min(row, col) // 3
+    num = min(row, col) // 2
     idx_features1 = np.zeros(num, dtype=int)
     idx_features2 = np.zeros(num, dtype=int)
     dis = []
@@ -91,13 +90,13 @@ def featureFilter(features1, features2, points1, points2):
 
 
 def featureMatching(src, tgt, src_fpfh, tgt_fpfh, hyperparams):
-    # src_features = src_fpfh.data
-    # tgt_features = tgt_fpfh.data
+    src_features = src_fpfh.data
+    tgt_features = tgt_fpfh.data
 
-    # # 过滤掉一些不相关的点
-    # src_features, tgt_features, src, tgt = featureFilter(
-    #     src_features, tgt_features, src, tgt
-    # )
+    # 过滤掉一些不相关的点
+    src_features, tgt_features, src, tgt = featureFilter(
+        src_features, tgt_features, src, tgt
+    )
 
     distance_threshold = hyperparams["dis"]
 
@@ -160,17 +159,18 @@ def pointCloudRegistration(prefix, name, hyperparams):
             f"feature corresponsence set: \nshape: {corr_set.shape} \n values: \n{corr_set.T}"
         )
 
-        # transform & visualize
+        # transform
         pcd_reg = o3d.geometry.PointCloud()
         pcd_reg.points = src_pcd.points
         pcd_reg.transform(trans)
+
+        # visualization
         src_pcd.paint_uniform_color([1, 0, 0])  # 红
         tgt_pcd.paint_uniform_color([0, 1, 0])  # 绿
         pcd_reg.paint_uniform_color([0, 0, 1])  # 蓝
         o3d.visualization.draw_geometries([src_pcd, tgt_pcd, pcd_reg])
 
         # 4. icp local registration
-
 
 if __name__ == "__main__":
     # names = ["bunny", "room", "temple"]
