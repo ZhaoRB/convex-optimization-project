@@ -38,11 +38,11 @@ def featureExtraction(pointCloud, salientPointsIndex, hyperparams, isVisualize=F
     return key_points_fpfh
 
 # 使用feature过滤salient points
-def featureFilter(features1, features2, points1, points2):
+def featureFilter(features1, features2, points1, points2, ratio=2):
     row = features1.shape[1]
     col = features2.shape[1]
 
-    num = min(row, col) // 2
+    num = min(row, col) // ratio
     idx_features1 = np.zeros(num, dtype=int)
     idx_features2 = np.zeros(num, dtype=int)
     dis = []
@@ -110,13 +110,13 @@ def featureMatching(src, tgt, src_fpfh, tgt_fpfh, hyperparams):
         estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint(
             True
         ),
-        ransac_n=3,
-        checkers=[
-            o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
-            o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(
-                distance_threshold
-            ),
-        ],
+        ransac_n=6,
+        # checkers=[
+        #     o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
+        #     o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(
+        #         distance_threshold
+        #     ),
+        # ],
         criteria=o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999),
     )
     return result
@@ -179,12 +179,12 @@ if __name__ == "__main__":
     hyperparams = [
         {
             "fpfh": {
-                "r_normal": 0.05,
-                "r_fpfh": 0.05,
+                "r_normal": 0.02,
+                "r_fpfh": 0.02,
                 "max_nn_norm": 30,
                 "max_nn_fpfh": 50,
             },
-            "ransac": {"dis": 0.1},
+            "ransac": {"dis": 0.5},
         }
     ]
     for idx, name in enumerate(names):
