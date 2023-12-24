@@ -4,6 +4,7 @@ import cvxpy as cp
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import cKDTree
+from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
 from utils import *
@@ -56,13 +57,8 @@ def solve(X, Y):
         r = u @ vh
     return r, t
 
-'''
-hyperparams:
-- maxiters
-- w1
-- w2
-'''
-def icp(src_sal, tgt_sal, src, tgt, src_feat, tgt_feat, R, T, hyperparams):
+
+def icp(pcd, tgt, pcd_point, tgt_point, pcd_fea, tgt_fea, R, t, w1, iters=20):
     loss = []
 
     for _ in tqdm(range(iters)):
@@ -74,6 +70,10 @@ def icp(src_sal, tgt_sal, src, tgt, src_feat, tgt_feat, R, T, hyperparams):
         # 同时考虑feature xyz 找对应关系
 
         w2 = 1 - w1
+        # A = np.hstack((w1*pcd_, w2*pcd_fea))
+        # B = np.hstack((w1*tgt, w2*tgt_fea))
+        # [tgtid, pcd_id] = find_n(tgt, pcd_)
+        # 分开算相似性  再加权
 
         sim_fea = com_sim(tgt_fea, pcd_fea)
         sim_pos = com_sim(tgt, pcd_)
@@ -89,7 +89,7 @@ def icp(src_sal, tgt_sal, src, tgt, src_feat, tgt_feat, R, T, hyperparams):
         pcd_id, tgtid = pro(sort_ind[:, 0], val_num)
         pcd_id = list(map(int, pcd_id))
 
-
+        # [tgtid, pcd_id] = find_n(B, A)
 
         R_, t_ = solve(pcd_[pcd_id, :].T, tgt[tgtid, :].T)
         if np.linalg.norm(R_ - R) < 1e-6:
@@ -97,7 +97,7 @@ def icp(src_sal, tgt_sal, src, tgt, src_feat, tgt_feat, R, T, hyperparams):
             break
         R = R_ @ R
         t = R_ @ t + t_
-
+        # loss.append(com_loss((R @ pcd_[corr, :].T).T + t, tgt))
         loss.append(com_loss((R @ pcd_[pcd_id, :].T).T + t, tgt[tgtid, :]))
 
     print(loss)
