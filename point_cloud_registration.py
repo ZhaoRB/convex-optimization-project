@@ -43,15 +43,25 @@ def featureExtraction(
 
 # global registration: 为icp计算初始值
 def globalReg(
-    src: np.ndarray, tgt: np.ndarray, src_feat: np.ndarray, tgt_feat: np.ndarray
+    src: np.ndarray,
+    tgt: np.ndarray,
+    src_feat: np.ndarray,
+    tgt_feat: np.ndarray,
+    hyperparams,
 ) -> tuple[np.ndarray, np.ndarray]:
     # 根据特征值找对应点
-    corrIdx = np.asarray(find_n(tgt_feat, src_feat))
-    src_corr = src[corrIdx[1]]
-    tgt_corr = tgt[corrIdx[0]]
+    # corrIdx = np.asarray(find_nn(tgt_feat, src_feat))
+    # src_corr = src[corrIdx[1]]
+    # tgt_corr = tgt[corrIdx[0]]
+    corrIdx = np.asarray(
+        find_nn(src_feat, tgt_feat, src.shape[0] // hyperparams["ratio"])
+    )
 
-    print(f"tgtid: {corrIdx[0]}")
-    print(f"srcid: {corrIdx[1]}")
+    src_corr = src[corrIdx[:, 0].T]
+    tgt_corr = tgt[corrIdx[:, 1].T]
+
+    print(f"tgtid: {corrIdx[:, 0]}")
+    print(f"srcid: {corrIdx[:, 1]}")
 
     # 粗配准
     cen_source = np.mean(src_corr, axis=0)
@@ -98,6 +108,7 @@ def pointCloudRegistration(prefix, name, hyperparams):
             tgt_pcd_salient,
             src_salient_feature,
             tgt_salient_feature,
+            hyperparams["globalReg"]
         )
 
         print(R)
@@ -105,26 +116,29 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
         # global registration result visualization
         golReg_pcd = (R @ src_pcd.T).T + T
-        compare_pcd([src_pcd, golReg_pcd, tgt_pcd])
+        # compare_pcd([src_pcd, golReg_pcd, tgt_pcd])
+        pcd_visualize([golReg_pcd, tgt_pcd])
 
         # 4. local registration
-        R, T = icp(
-            src_pcd_salient,
-            tgt_pcd_salient,
-            src_salient_feature,
-            tgt_salient_feature,
-            R, T,
-            hyperparams["icp"],
-        )
+        # R, T = icp(
+        #     src_pcd_salient,
+        #     tgt_pcd_salient,
+        #     src_salient_feature,
+        #     tgt_salient_feature,
+        #     R, T,
+        #     hyperparams["icp"],
+        # )
 
-        icp_pcd = (R @ src_pcd.T).T + T
-        compare_pcd([src_pcd, icp_pcd, tgt_pcd])
+        # print("=============local reg=================")
+        # print(R @ R.T)
 
+        # icp_pcd = (R @ src_pcd.T).T + T
+        # compare_pcd([src_pcd, icp_pcd, tgt_pcd])
 
 
 if __name__ == "__main__":
-    # names = ["bunny", "room", "temple"]
-    names = ["bunny"]
+    names = ["bunny", "room", "temple"]
+    # names = ["temple"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
     hyperparams = [
         {
@@ -134,8 +148,29 @@ if __name__ == "__main__":
                 "max_nn_norm": 30,
                 "max_nn_fpfh": 50,
             },
+            "globalReg": {"ratio": 3},
             "icp": {"w": 0.1, "maxIters": 20},
-        }
+        },
+        {
+            "fpfh": {
+                "r_normal": 0.05,
+                "r_fpfh": 0.05,
+                "max_nn_norm": 30,
+                "max_nn_fpfh": 50,
+            },
+            "globalReg": {"ratio": 4},
+            "icp": {"w": 0.1, "maxIters": 20},
+        },
+        {
+            "fpfh": {
+                "r_normal": 0.5,
+                "r_fpfh": 0.5,
+                "max_nn_norm": 200,
+                "max_nn_fpfh": 200,
+            },
+            "globalReg": {"ratio": 3},
+            "icp": {"w": 0.1, "maxIters": 20},
+        },
     ]
     for idx, name in enumerate(names):
         pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[idx])

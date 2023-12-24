@@ -3,14 +3,13 @@ import copy
 import cvxpy as cp
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.spatial import cKDTree
-from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
 from utils import *
 
 
 # class ConvexRelaxationSolver:
+# X是src，Y是tgt
 def solve(X, Y):
     r = cp.Variable((3, 3))
     t = cp.Variable(3)
@@ -69,7 +68,7 @@ def icp(
 ):
     loss = []
     w = 1  # feature的权重
-    s = w / 2 / hyperparams["maxIters"]
+    s = w / 10 / hyperparams["maxIters"]
     sim_feat = com_sim(src_feat, tgt_feat)
 
     for _ in tqdm(range(hyperparams["maxIters"])):
@@ -79,26 +78,26 @@ def icp(
         sim_pos = com_sim(src_, tgt)
         sim = (1 - w) * sim_pos + w * sim_feat
 
-        w = w - s  # 更新权重，随着迭代的进行，feat的权重越来越小
+        # w = w - s  # 更新权重，随着迭代的进行，feat的权重越来越小
 
         sort_ind = np.zeros(sim.shape)
         for i in range(len(sim)):
-            sort_ind[i, :] = np.argsort(sim[i, :])[::-1]
+            sort_ind[i, :] = np.argsort(sim[i, :])
 
         val_num = src.shape[0] // 5
-        src_id, tgtid = pro(sort_ind[:, 0], val_num)
-        # src_id = list(map(int, src_id))
-        src_id = [int(x) for x in src_id]
+        tgt_idx, src_idx = pro(sort_ind[:, 0], val_num)
+        tgt_idx = [int(x) for x in tgt_idx]
 
-        R_, t_ = solve(src_[src_id, :].T, tgt[tgtid, :].T)
+
+        R_, t_ = solve(src_[src_idx, :].T, tgt[tgt_idx, :].T)
         if np.linalg.norm(R_ - R) < 1e-6:
             print("early stop, the problem has already converged")
             break
         R = R_ @ R
         t = R_ @ t + t_
-        loss.append(com_loss((R @ src_[src_id, :].T).T + t, tgt[tgtid, :]))
+        loss.append(com_loss((R @ src_[src_idx, :].T).T + t, tgt[tgt_idx, :]))
 
-    print(loss)
+    # print(loss)
     plt.figure()
     plt.plot(range(len(loss)), loss)
     plt.show()
