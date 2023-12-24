@@ -2,11 +2,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
 
+from solver import *
 from utils import *
 
 
 # 使用FPFH算法计算点云中指定的salient points的特征
-def featureExtraction(pointCloud, salientPointsIndex, hyperparams, isVisualize=False):
+def featureExtraction(
+    pointCloud, salientPointsIndex, hyperparams, isVisualize=False
+) -> np.ndarray:
     # 计算法向量
     pointCloud.estimate_normals(
         o3d.geometry.KDTreeSearchParamHybrid(
@@ -37,8 +40,9 @@ def featureExtraction(pointCloud, salientPointsIndex, hyperparams, isVisualize=F
 
     return key_points_fpfh
 
+
 # 使用feature过滤salient points
-def featureFilter(features1, features2, points1, points2, ratio=2):
+def featureFilter(features1, features2, ratio=2):
     row = features1.shape[1]
     col = features2.shape[1]
 
@@ -77,53 +81,31 @@ def featureFilter(features1, features2, points1, points2, ratio=2):
     print(idx_features2)
     print(dis)
 
-    # filtered points
-    filtered_points1 = points1.select_by_index(idx_features1)
-    filtered_points2 = points2.select_by_index(idx_features2)
-
-    return (
-        features1[:, idx_features1],
-        features2[:, idx_features2],
-        filtered_points1,
-        filtered_points2,
-    )
+    return np.array([idx_features1, idx_features2])
 
 
-def featureMatching(src, tgt, src_fpfh, tgt_fpfh, hyperparams):
-    src_features = src_fpfh.data
-    tgt_features = tgt_fpfh.data
+# global registration
+def globalReg(src_pcd, tgt_pcd, src_feat, tgt_feat):
+    # 根据特征值找对应点
+    # corr = featureFilter(src_feat, tgt_feat)
+    # corr = np.asarray(find_n(src_feat.T, tgt_feat.T))
+    corr = np.asarray(find_n(tgt_feat.T, src_feat.T))
+    src = np.asarray(src_pcd.points)[corr[1]]
+    tgt = np.asarray(tgt_pcd.points)[corr[0]]
 
-    # 过滤掉一些不相关的点
-    src_features, tgt_features, src, tgt = featureFilter(
-        src_features, tgt_features, src, tgt
-    )
-
-    distance_threshold = hyperparams["dis"]
-
-    result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
-        src,
-        tgt,
-        src_fpfh,
-        tgt_fpfh,
-        mutual_filter=True,
-        max_correspondence_distance=distance_threshold,
-        estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint(
-            True
-        ),
-        ransac_n=6,
-        # checkers=[
-        #     o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
-        #     o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(
-        #         distance_threshold
-        #     ),
-        # ],
-        criteria=o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999),
-    )
-    return result
-
-
-def localRegistration(src, tgt, src_fpfh, tgt_fpfh, hyperparams):
-    pass
+    # 粗配准
+    cen_source = np.mean(src, axis=0)
+    cen_target = np.mean(tgt, axis=0)
+    # 计算零中心配对点对
+    cen_cor_source = src - cen_source
+    cen_cor_tar = tgt - cen_target
+    # 使用奇异值分解（SVD）估计旋转矩阵
+    H = np.dot(cen_cor_source.T, cen_cor_tar)
+    U, S, Vt = np.linalg.svd(H)
+    R = np.dot(Vt.T, U.T)
+    # 计算平移向量
+    T = cen_source - np.dot(R, cen_target)
+    return R, T
 
 
 def pointCloudRegistration(prefix, name, hyperparams):
@@ -131,46 +113,54 @@ def pointCloudRegistration(prefix, name, hyperparams):
     pcds, infos = loadData(prefix, name)
 
     # 2. feature extraction
-    features = [
+    salient_features = [
         featureExtraction(pcd, info["all_idxs"], hyperparams["fpfh"])
         for pcd, info in zip(pcds, infos)
     ]
 
     tgt_pcd = pcds[0]
     tgt_pcd_salient = tgt_pcd.select_by_index(infos[0]["all_idxs"])
-    tgt_fpfh = o3d.pipelines.registration.Feature()
-    tgt_fpfh.data = features[0]
+    tgt_salient_feature = salient_features[0]
 
     for i in range(2):
         idx = i + 1
         src_pcd = pcds[idx]
         src_pcd_salient = src_pcd.select_by_index(infos[idx]["all_idxs"])
-        src_fpfh = o3d.pipelines.registration.Feature()
-        src_fpfh.data = features[idx]
+        src_salient_feature = salient_features[idx]
 
-        # 3. feature matching & global registration
-        res = featureMatching(
-            src_pcd_salient, tgt_pcd_salient, src_fpfh, tgt_fpfh, hyperparams["ransac"]
+        # 3. global registration
+        R, T = globalReg(
+            src_pcd_salient, tgt_pcd_salient, src_salient_feature, tgt_salient_feature
         )
-        corr_set = np.asarray(res.correspondence_set)  # ransac 找到的对应关系
-        trans = res.transformation  # 得到的 transform 矩阵（4*4）
 
-        print(
-            f"feature corresponsence set: \nshape: {corr_set.shape} \n values: \n{corr_set.T}"
-        )
+        print(R)
+        print(T)
 
         # transform
-        pcd_reg = o3d.geometry.PointCloud()
-        pcd_reg.points = src_pcd.points
-        pcd_reg.transform(trans)
+        golReg_pcd = o3d.geometry.PointCloud()
+        reg_points = np.transpose(R @ np.asarray(src_pcd.points).T + T.reshape(3, 1))
+        golReg_pcd.points = o3d.utility.Vector3dVector(reg_points)
+        golReg_pcd_salient = golReg_pcd.select_by_index(infos[idx]["all_idxs"])
 
         # visualization
         src_pcd.paint_uniform_color([1, 0, 0])  # 红
         tgt_pcd.paint_uniform_color([0, 1, 0])  # 绿
-        pcd_reg.paint_uniform_color([0, 0, 1])  # 蓝
-        o3d.visualization.draw_geometries([src_pcd, tgt_pcd, pcd_reg])
+        golReg_pcd.paint_uniform_color([0, 0, 1])  # 蓝
+        o3d.visualization.draw_geometries([src_pcd, tgt_pcd, golReg_pcd])
 
         # 4. icp local registration
+        # R, T = icp(
+        #     np.asarray(src_pcd_salient.points),
+        #     np.asarray(tgt_pcd_salient.points),
+        #     np.asarray(src_pcd.points),
+        #     np.asarray(tgt_pcd.points),
+        #     src_salient_feature,
+        #     tgt_salient_feature,
+        #     R,
+        #     T,
+        #     0.1,
+        # )
+
 
 if __name__ == "__main__":
     # names = ["bunny", "room", "temple"]
