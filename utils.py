@@ -23,6 +23,7 @@ def loadData(pathPrefix: str, name: str):
 
     return [pcd_1, pcd_2, pcd_3], [info_1, info_2, info_3]
 
+
 # 找最近邻 (这里src和tgt反了)
 def find_n(src, tgt):
     nk = len(src)
@@ -38,6 +39,7 @@ def find_n(src, tgt):
     return [srcid_, tgtid_]
 
 
+# 获得list中不重复的元素和其index
 def pro(lst, n):
     seen = set()
     result = []
@@ -91,8 +93,10 @@ def com_sim(srcMat: np.ndarray, tgtMat: np.ndarray):  # scrMat 33x33    tgtMat 3
     # 归一化
     return res / np.amax(res)
 
+
 def pcdToNp(pointCloud):
     return np.asarray(pointCloud.points)
+
 
 def npToPcd(array):
     pcd = o3d.geometry.PointCloud()

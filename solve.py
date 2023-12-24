@@ -63,30 +63,36 @@ def icp(
     tgt: np.ndarray,
     src_feat: np.ndarray,
     tgt_feat: np.ndarray,
-    hyperparams: dict
+    R: np.ndarray,
+    t: np.ndarray,
+    hyperparams: dict,
 ):
     loss = []
+    w = 1  # feature的权重
+    s = w / 2 / hyperparams["maxIters"]
+    sim_feat = com_sim(src_feat, tgt_feat)
 
-    for _ in tqdm(range(hyperparams['maxIters'])):
+    for _ in tqdm(range(hyperparams["maxIters"])):
+        src_ = np.transpose(R @ copy.deepcopy(src).T) + t
+
         # 找对应关系
-        w1 = hyperparams["w"]
-        w2 = 1 - w1
-        sim_feat = com_sim(src_feat, tgt_feat)
-        sim_pos = com_sim(src, src)
-        sim = w1 * sim_pos + w2 * sim_feat
+        sim_pos = com_sim(src_, tgt)
+        sim = (1 - w) * sim_pos + w * sim_feat
+
+        w = w - s  # 更新权重，随着迭代的进行，feat的权重越来越小
 
         sort_ind = np.zeros(sim.shape)
         for i in range(len(sim)):
             sort_ind[i, :] = np.argsort(sim[i, :])[::-1]
 
-        nk = len(tgt)
-        val_num = int(np.floor(nk * 0.2))
+        val_num = src.shape[0] // 5
         src_id, tgtid = pro(sort_ind[:, 0], val_num)
-        src_id = list(map(int, src_id))
+        # src_id = list(map(int, src_id))
+        src_id = [int(x) for x in src_id]
 
         R_, t_ = solve(src_[src_id, :].T, tgt[tgtid, :].T)
         if np.linalg.norm(R_ - R) < 1e-6:
-            print("break")
+            print("early stop, the problem has already converged")
             break
         R = R_ @ R
         t = R_ @ t + t_
@@ -104,9 +110,3 @@ def com_loss(A, B):
     d = np.linalg.norm(A - B, axis=1)  # 计算每一行的距离
     sum_d = np.sum(d)
     return sum_d / len(A)
-
-
-def fnn(Pf, Q):
-    kdtree = cKDTree(Q)
-    nearest_neighbors = kdtree.query(Pf, k=1)
-    return nearest_neighbors[1]

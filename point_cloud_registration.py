@@ -104,18 +104,22 @@ def pointCloudRegistration(prefix, name, hyperparams):
         print(T)
 
         # global registration result visualization
-        golReg_pcd = np.transpose(R @ src_pcd.T + T.reshape(3, 1))
-        golReg_pcd_salient = golReg_pcd[infos[idx]["all_idxs"]]
+        golReg_pcd = (R @ src_pcd.T).T + T
         compare_pcd([src_pcd, golReg_pcd, tgt_pcd])
 
         # 4. local registration
         R, T = icp(
-            golReg_pcd_salient,
+            src_pcd_salient,
             tgt_pcd_salient,
             src_salient_feature,
             tgt_salient_feature,
+            R, T,
             hyperparams["icp"],
         )
+
+        icp_pcd = (R @ src_pcd.T).T + T
+        compare_pcd([src_pcd, icp_pcd, tgt_pcd])
+
 
 
 if __name__ == "__main__":
