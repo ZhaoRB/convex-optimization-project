@@ -86,7 +86,7 @@ def pointCloudRegistration(prefix, name, hyperparams):
     # 2. feature extraction
     # 注意：a.获取的是salient points的feature  b.每个feature是一个行向量
     salient_features = [
-        featureExtraction(pcd, info["all_idxs"], hyperparams["fpfh"])
+        featureExtraction(pcd, info["all_idxs"], hyperparams["fpfh"], False)
         for pcd, info in zip(pcds, infos)
     ]
 
@@ -94,6 +94,8 @@ def pointCloudRegistration(prefix, name, hyperparams):
     tgt_pcd = pcdToNp(pcds[0])
     tgt_pcd_salient = tgt_pcd[infos[0]["all_idxs"]]
     tgt_salient_feature = salient_features[0]
+
+    reg_res = []
 
     for i in range(2):
         idx = i + 1
@@ -111,33 +113,32 @@ def pointCloudRegistration(prefix, name, hyperparams):
             hyperparams["globalReg"]
         )
 
-        print(R)
-        print(T)
-
         # global registration result visualization
         golReg_pcd = (R @ src_pcd.T).T + T
         # compare_pcd([src_pcd, golReg_pcd, tgt_pcd])
-        pcd_visualize([golReg_pcd, tgt_pcd])
+        pcd_visualize([src_pcd, golReg_pcd, tgt_pcd])
+        # pcd_visualize([src_pcd_salient, golReg_pcd[infos[idx]["all_idxs"]], tgt_pcd_salient])
 
         # 4. local registration
-        # R, T = icp(
-        #     src_pcd_salient,
-        #     tgt_pcd_salient,
-        #     src_salient_feature,
-        #     tgt_salient_feature,
-        #     R, T,
-        #     hyperparams["icp"],
-        # )
+        R, T = icp(
+            src_pcd_salient,
+            tgt_pcd_salient,
+            src_salient_feature,
+            tgt_salient_feature,
+            R, T,
+            hyperparams["icp"],
+        )
 
-        # print("=============local reg=================")
-        # print(R @ R.T)
+        print("=============local reg=================")
+        print(R @ R.T)
 
-        # icp_pcd = (R @ src_pcd.T).T + T
-        # compare_pcd([src_pcd, icp_pcd, tgt_pcd])
+        icp_pcd = (R @ src_pcd.T).T + T
+        pcd_visualize([src_pcd, icp_pcd, tgt_pcd])
 
+    return reg_res
 
 if __name__ == "__main__":
-    names = ["bunny", "room", "temple"]
+    names = ["bunny", "room"]
     # names = ["temple"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
     hyperparams = [
@@ -163,14 +164,17 @@ if __name__ == "__main__":
         },
         {
             "fpfh": {
-                "r_normal": 0.5,
-                "r_fpfh": 0.5,
-                "max_nn_norm": 200,
-                "max_nn_fpfh": 200,
+                "r_normal": 0.1,
+                "r_fpfh": 0.1,
+                "max_nn_norm": 300,
+                "max_nn_fpfh": 500,
             },
-            "globalReg": {"ratio": 3},
+            "globalReg": {"ratio": 4},
             "icp": {"w": 0.1, "maxIters": 20},
         },
     ]
+    
+    reg_res = []
+    
     for idx, name in enumerate(names):
-        pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[idx])
+        res = pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[idx])

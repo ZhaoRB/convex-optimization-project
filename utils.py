@@ -3,6 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
+import point_cloud_utils as pcu
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
 
@@ -45,6 +46,31 @@ def find_nn(points1, points2, k):
         distances[:, idx[1]] = np.inf
 
     return matches
+
+
+def find_nn_posAndFeat(points1, points2, feat1, feat2, pos_w, feat_w, k):
+    # 计算两个数组中所有点的距离矩阵
+    pos_dis = cdist(points1, points2)
+    feat_dis = cdist(feat1, feat2)
+    distances = pos_w * pos_dis + feat_w * feat_dis
+
+    # 初始化匹配对列表
+    matches = []
+
+    # 找到最近邻匹配对
+    for _ in range(k):
+        # 找到最小距离的索引
+        idx = np.unravel_index(np.argmin(distances), distances.shape)
+
+        # 添加匹配对到列表
+        matches.append((idx[0], idx[1]))
+
+        # 将已匹配的点的距离设为无穷大，以避免重复匹配
+        distances[idx[0], :] = np.inf
+        distances[:, idx[1]] = np.inf
+
+    return np.asarray(matches)
+
 
 # 找最近邻 (这里src和tgt反了)
 def find_n(src, tgt):

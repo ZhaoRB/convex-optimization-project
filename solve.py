@@ -70,23 +70,28 @@ def icp(
     w = 1  # feature的权重
     s = w / 10 / hyperparams["maxIters"]
     sim_feat = com_sim(src_feat, tgt_feat)
+    w1 = 0
+    w2 = 1
 
     for _ in tqdm(range(hyperparams["maxIters"])):
         src_ = np.transpose(R @ copy.deepcopy(src).T) + t
 
         # 找对应关系
-        sim_pos = com_sim(src_, tgt)
-        sim = (1 - w) * sim_pos + w * sim_feat
+        # sim_pos = com_sim(src_, tgt)
+        # sim = (1 - w) * sim_pos + w * sim_feat
 
-        # w = w - s  # 更新权重，随着迭代的进行，feat的权重越来越小
+        # # w = w - s  # 更新权重，随着迭代的进行，feat的权重越来越小
 
-        sort_ind = np.zeros(sim.shape)
-        for i in range(len(sim)):
-            sort_ind[i, :] = np.argsort(sim[i, :])
+        # sort_ind = np.zeros(sim.shape)
+        # for i in range(len(sim)):
+        #     sort_ind[i, :] = np.argsort(sim[i, :])
 
-        val_num = src.shape[0] // 5
-        tgt_idx, src_idx = pro(sort_ind[:, 0], val_num)
-        tgt_idx = [int(x) for x in tgt_idx]
+        val_num = src.shape[0] // 4
+        # tgt_idx, src_idx = pro(sort_ind[:, 0], val_num)
+        # tgt_idx = [int(x) for x in tgt_idx]
+        corr = find_nn_posAndFeat(src, tgt, src_feat, tgt_feat, w1, w2, val_num)
+        src_idx = corr[:, 0].T
+        tgt_idx = corr[:, 1].T
 
 
         R_, t_ = solve(src_[src_idx, :].T, tgt[tgt_idx, :].T)
