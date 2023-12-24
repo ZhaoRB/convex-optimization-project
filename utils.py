@@ -23,7 +23,7 @@ def loadData(pathPrefix: str, name: str):
 
     return [pcd_1, pcd_2, pcd_3], [info_1, info_2, info_3]
 
-# 找最近邻
+# 找最近邻 (这里src和tgt反了)
 def find_n(src, tgt):
     nk = len(src)
     neighbors = NearestNeighbors(n_neighbors=nk, algorithm="kd_tree").fit(tgt)
@@ -54,13 +54,11 @@ def pro(lst, n):
 
 def compare_pcd(pcds, labels=None, path=None):
     if labels is None:
-        labels = ["Original", "Corrupted", "Recovered"]
+        labels = ["Source", "Registrated", "Target"]
 
     dpi = 80
     fig = plt.figure(figsize=(1440 / dpi, 720 / dpi), dpi=dpi)
     ax = fig.add_subplot(projection="3d")
-
-    # ax.set_xlim3d([-3,3]), ax.set_ylim3d([-3,3]), ax.set_zlim3d([-3,3])
     ax.set_proj_type("persp")
 
     for points, label in zip(pcds, labels):
@@ -75,31 +73,28 @@ def compare_pcd(pcds, labels=None, path=None):
         )
 
     plt.legend()
-
-    if path is not None:
-        if path is not None:
-            plt.savefig(f"./imgs/{path}.png")
-    # plt.show()
+    plt.show()
     #
     # plt.clf()
+    if path is not None:
+        plt.savefig(f"./imgs/{path}.png")
 
-def EucDis(vec1, vec2):
-    arr1 = np.array(vec1)
-    arr2 = np.array(vec2)
-    distance = np.linalg.norm(arr1 - arr2)
-    nd = distance / (1 + distance)
-    return nd
 
-# 根据特征矩阵  找对应关系
-def com_sim(srcMat, tgtMat):  # scrMat 33x33    tgtMat 36x33
+# 计算欧式距离（特征 or 位置）+ 归一化
+def com_sim(srcMat: np.ndarray, tgtMat: np.ndarray):  # scrMat 33x33    tgtMat 36x33
     m = srcMat.shape[0]
     n = tgtMat.shape[0]
     res = np.zeros((m, n))
-
     for i in range(m):
         for j in range(n):
-            res[i, j] = EucDis(srcMat[i, :], tgtMat[j, :])
-            pass
-        pass
+            res[i, j] = np.linalg.norm(srcMat[i, :] - tgtMat[j, :])
+    # 归一化
+    return res / np.amax(res)
 
-    return res
+def pcdToNp(pointCloud):
+    return np.asarray(pointCloud.points)
+
+def npToPcd(array):
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(array)
+    return pcd
