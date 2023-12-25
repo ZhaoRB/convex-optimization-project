@@ -1,4 +1,5 @@
 # 暂时用不上的函数
+import numpy as np
 
 # 找到矩阵中最小的几个对应点
 def findMinInMatrix(matrix, num):
