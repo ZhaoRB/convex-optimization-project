@@ -23,7 +23,10 @@ def loadData(pathPrefix: str, name: str):
     return [pcd_1, pcd_2, pcd_3], [info_1, info_2, info_3]
 
 
-def find_nn(points1, points2, k):
+def find_nn(points1, points2, k=None):
+    if not k:
+        k = min(points1.shape[0], points2.shape[0])
+
     # 计算两个数组中所有点的距离矩阵
     distances = cdist(points1, points2)
 
@@ -219,7 +222,7 @@ def find_min_sum(src: np.ndarray, tgt: np.ndarray):
     src_indices = np.arange(src.shape[0])
     tgt_indices = np.asarray(indices.flatten())
 
-    return src_indices, tgt_indices
+    return np.asarray([src_indices, tgt_indices])
 
 
 def com_loss(A, B):

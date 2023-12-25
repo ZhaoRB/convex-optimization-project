@@ -55,8 +55,8 @@ def globalReg(
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
 
-    print(f"tgtid: {corrIdx[:, 0]}")
-    print(f"srcid: {corrIdx[:, 1]}")
+    print(f"src_idx: {corrIdx[:, 0]}")
+    print(f"tgt_idx: {corrIdx[:, 1]}")
 
     R, t = svdSolver(src_corr, tgt_corr)
     return R, t
@@ -76,18 +76,23 @@ def fineReg(
     solver: str = "svd",
     isVisual=False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    src_ = (R @ copy.deepcopy(src).T).T + t
+    # 先用feature筛选掉一半的点
+    corrIdxFeat = find_nn(src_feat, tgt_feat, src.shape[0] // 3).T
+    print(corrIdxFeat)
+    # corrIdxFeat = corrIdxFeat[:, : corrIdxFeat.shape[0] // 3]
+    src_ = src[corrIdxFeat[0]]
+    tgt_ = tgt[corrIdxFeat[1]]
+    src_ = (R @ src_.T).T + t
 
     for _ in range(5):
         # 找对应点
-        val_num = src.shape[0] // 3
+        # val_num = src.shape[0] // 3
         # corrIdx = find_nn(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
-        corrIdx = find_nn(src_, tgt, val_num)
-        # corrIdx = find_min_sum(src_, tgt)
-        src_corr = src_[corrIdx[:, 0].T]
-        tgt_corr = tgt[corrIdx[:, 1].T]
-        print(f"tgtid: {corrIdx[:, 0]}")
-        print(f"srcid: {corrIdx[:, 1]}")
+        # corrIdx = find_nn(src_, tgt, val_num)
+        corrIdx = find_min_sum(src_, tgt_)
+        src_corr = src_[corrIdx[0].T]
+        tgt_corr = tgt[corrIdx[1].T]
+        print(corrIdx)
 
         # solve
         if solver == "svd":
@@ -146,7 +151,19 @@ def pointCloudRegistration(prefix, name, hyperparams):
         pcd_visualize([src_pcd, golReg_pcd, tgt_pcd])
 
         # 4. fine registration
-        R, t = fineReg(src_pcd_salient, tgt_pcd_salient)
+        R, t = fineReg(
+            src_pcd_salient,
+            tgt_pcd_salient,
+            src_salient_feature,
+            tgt_salient_feature,
+            src_pcd,
+            tgt_pcd,
+            R,
+            t,
+            hyperparams["fineReg"],
+            "svd",
+            True
+        )
 
     return reg_res
 
