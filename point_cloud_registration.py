@@ -51,48 +51,34 @@ def globalReg(
 ) -> tuple[np.ndarray, np.ndarray]:
     # 根据特征值找对应点, 找特征值最接近的val_num个对应点
     val_num = src.shape[0] // hyperparams["ratio"]
-    corrIdx = np.asarray(
-        find_nn(src_feat, tgt_feat, val_num)
-    )
+    corrIdx = np.asarray(find_nn(src_feat, tgt_feat, val_num))
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
 
     print(f"tgtid: {corrIdx[:, 0]}")
     print(f"srcid: {corrIdx[:, 1]}")
 
-    # 粗配准，SVD算法
-    cen_source = np.mean(src_corr, axis=0)
-    cen_target = np.mean(tgt_corr, axis=0)
-    # 计算零中心配对点对
-    cen_cor_source = src_corr - cen_source
-    cen_cor_tar = tgt_corr - cen_target
-    # 使用奇异值分解（SVD）估计旋转矩阵
-    H = np.dot(cen_cor_source.T, cen_cor_tar)
-    U, S, Vt = np.linalg.svd(H)
-    R = np.dot(Vt.T, U.T)
-    # 计算平移向量
-    t = cen_target - np.dot(R, cen_source)
-
+    R, t = svdSolver(src_corr, tgt_corr)
     return R, t
 
 
-# global registration: 为icp计算初始值
-def icpSVD(
+# fine registration
+def fineReg(
     src: np.ndarray,
     tgt: np.ndarray,
     src_feat: np.ndarray,
     tgt_feat: np.ndarray,
-    R,
-    t,
-    hyperparams,
     src_all: np.ndarray,
     tgt_all: np.ndarray,
+    R: np.ndarray,
+    t: np.ndarray,
+    hyperparams: dict,
+    solver: str = "svd",
+    isVisual=False,
 ) -> tuple[np.ndarray, np.ndarray]:
+    src_ = (R @ copy.deepcopy(src).T).T + t
 
-    w1 = 0.5  # position weight
-    w2 = 0.5  # feature weight
-    src_ = copy.deepcopy(src)
-    for _ in range(20):
+    for _ in range(5):
         # 找对应点
         val_num = src.shape[0] // 3
         # corrIdx = find_nn(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
@@ -102,24 +88,19 @@ def icpSVD(
         tgt_corr = tgt[corrIdx[:, 1].T]
         print(f"tgtid: {corrIdx[:, 0]}")
         print(f"srcid: {corrIdx[:, 1]}")
-        # corrIdx = find_nn_corr(src_, tgt)
-        # src_corr = src_[]
 
-        cen_source = np.mean(src_corr, axis=0)
-        cen_target = np.mean(tgt_corr, axis=0)
-        # 计算零中心配对点对
-        cen_cor_source = src_corr - cen_source
-        cen_cor_tar = tgt_corr - cen_target
-        # 使用奇异值分解（SVD）估计旋转矩阵
-        H = np.dot(cen_cor_source.T, cen_cor_tar)
-        U, S, Vt = np.linalg.svd(H)
+        # solve
+        if solver == "svd":
+            R_, t_ = svdSolver(src_corr, tgt_corr)
+        else:
+            R_, t_ = convexRelaxSolver(src_corr, tgt_corr)
 
-        R_ = np.dot(Vt.T, U.T)
-        t_ = cen_target - np.dot(R_, cen_source)
+        # update
         R = R_ @ R
         t = R_ @ t + t_
         src_ = (R_ @ src_.T).T + t
 
+        # visualize
         reg_pcd = (R @ src_all.T).T + t
         pcd_visualize([src_all, reg_pcd, tgt_all])
 
@@ -151,7 +132,7 @@ def pointCloudRegistration(prefix, name, hyperparams):
         src_salient_feature = salient_features[idx]
 
         # 3. global registration
-        # 注意: 这里的T是向量，不是矩阵
+        # 注意: 这里的t是向量，不是矩阵
         R, t = globalReg(
             src_pcd_salient,
             tgt_pcd_salient,
@@ -160,43 +141,15 @@ def pointCloudRegistration(prefix, name, hyperparams):
             hyperparams["globalReg"],
         )
 
-        # global registration result visualization
+        # visualization
         golReg_pcd = (R @ src_pcd.T).T + t
-        # compare_pcd([src_pcd, golReg_pcd, tgt_pcd])
         pcd_visualize([src_pcd, golReg_pcd, tgt_pcd])
-        # pcd_visualize([src_pcd_salient, golReg_pcd[infos[idx]["all_idxs"]], tgt_pcd_salient])
 
-        # 4. local registration
-        # R, T = icp(
-        #     src_pcd_salient,
-        #     tgt_pcd_salient,
-        #     src_salient_feature,
-        #     tgt_salient_feature,
-        #     R, T,
-        #     hyperparams["icp"],
-        #     src_pcd,
-        #     tgt_pcd,
-        #     True
-        # )
-
-        R, t = icpSVD(
-            src_pcd_salient,
-            tgt_pcd_salient,
-            src_salient_feature,
-            tgt_salient_feature,
-            R, t,
-            hyperparams["globalReg"],
-            src_pcd,
-            tgt_pcd
-        )
-
-        # print("=============local reg=================")
-        # print(R @ R.T)
-
-        # icp_pcd = (R @ src_pcd.T).T + T
-        # pcd_visualize([src_pcd, icp_pcd, tgt_pcd])
+        # 4. fine registration
+        R, t = fineReg(src_pcd_salient, tgt_pcd_salient)
 
     return reg_res
+
 
 if __name__ == "__main__":
     # names = ["bunny", "room", "temple"]
@@ -211,7 +164,7 @@ if __name__ == "__main__":
                 "max_nn_fpfh": 50,
             },
             "globalReg": {"ratio": 3},
-            "icp": {"w": 0.1, "maxIters": 20},
+            "fineReg": {"w1": 0.1, "maxIters": 20},
         },
         {
             "fpfh": {
@@ -221,7 +174,7 @@ if __name__ == "__main__":
                 "max_nn_fpfh": 50,
             },
             "globalReg": {"ratio": 4},
-            "icp": {"w": 0.1, "maxIters": 20},
+            "fineReg": {"w": 0.1, "maxIters": 20},
         },
         {
             "fpfh": {
@@ -231,12 +184,11 @@ if __name__ == "__main__":
                 "max_nn_fpfh": 500,
             },
             "globalReg": {"ratio": 4},
-            "icp": {"w": 0.1, "maxIters": 20},
+            "fineReg": {"w": 0.1, "maxIters": 20},
         },
     ]
-    
+
     reg_res = []
-    
+
     for idx, name in enumerate(names):
         res = pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[idx])
-

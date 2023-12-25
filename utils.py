@@ -220,3 +220,9 @@ def find_min_sum(src: np.ndarray, tgt: np.ndarray):
     tgt_indices = np.asarray(indices.flatten())
 
     return src_indices, tgt_indices
+
+
+def com_loss(A, B):
+    d = np.linalg.norm(A - B, axis=1)  # 计算每一行的距离
+    sum_d = np.sum(d)
+    return sum_d / len(A)

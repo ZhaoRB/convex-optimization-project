@@ -10,7 +10,7 @@ from utils import *
 
 # class ConvexRelaxationSolver:
 # X是src，Y是tgt
-def solve(X, Y):
+def convexRelaxSolver(X, Y):
     r = cp.Variable((3, 3))
     t = cp.Variable(3)
     C = cp.bmat(
@@ -56,6 +56,22 @@ def solve(X, Y):
         r = u @ vh
     return r, t
 
+def svdSolver(src, tgt):
+    # 粗配准，SVD算法
+    cen_source = np.mean(src, axis=0)
+    cen_target = np.mean(tgt, axis=0)
+    # 计算零中心配对点对
+    cen_cor_source = src - cen_source
+    cen_cor_tar = tgt - cen_target
+    # 使用奇异值分解（SVD）估计旋转矩阵
+    H = np.dot(cen_cor_source.T, cen_cor_tar)
+    U, S, Vt = np.linalg.svd(H)
+    R = np.dot(Vt.T, U.T)
+    # 计算平移向量
+    t = cen_target - np.dot(R, cen_source)
+    
+    return R, t
+
 def icp(
     src: np.ndarray,
     tgt: np.ndarray,
@@ -81,7 +97,7 @@ def icp(
         tgt_idx = corr[:, 1].T
 
         # solve convex problem
-        R_, t_ = solve(src_[src_idx, :].T, tgt[tgt_idx, :].T)
+        R_, t_ = convexRelaxSolver(src_[src_idx, :].T, tgt[tgt_idx, :].T)
         if np.linalg.norm(R_ - R) < 1e-6:
             print("early stop, the problem has already converged")
             break
@@ -104,7 +120,5 @@ def icp(
     return R, t
 
 
-def com_loss(A, B):
-    d = np.linalg.norm(A - B, axis=1)  # 计算每一行的距离
-    sum_d = np.sum(d)
-    return sum_d / len(A)
+
+
