@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
 from scipy.spatial.distance import cdist
+from scipy.spatial import cKDTree
 from sklearn.neighbors import NearestNeighbors
 
 
@@ -41,7 +42,7 @@ def find_nn(points1, points2, k):
         distances[idx[0], :] = np.inf
         distances[:, idx[1]] = np.inf
 
-    return matches
+    return np.asarray(matches)
 
 
 def find_nn_posAndFeat(points1, points2, feat1, feat2, pos_w, feat_w, k):
@@ -160,3 +161,62 @@ def pcd_visualize(point_collections: list[np.ndarray]):
         merged_pcd += pcd
 
     o3d.visualization.draw_geometries([merged_pcd])
+
+
+def find_nn_corr(src, tgt):
+    """Given two input point clouds, find nearest-neighbor correspondence (from source to target)
+    Input:
+        - src: Source point cloud (n*3), either array or open3d pcd
+        - tgt: Target point cloud (n*3), either array or open3d pcd
+    Output:
+        - idxs: Array indices corresponds to src points,
+            array elements corresponds to nn in tgt points (n, np.array)
+    """
+
+    """ Way1: Sklearn"""
+    if src.shape[1] != 3:
+        src = src.T
+    if tgt.shape[1] != 3:
+        tgt = tgt.T
+
+    if not isinstance(src, np.ndarray):
+        src = np.asarray(src.points)  # (16384*3)
+        tgt = np.asarray(tgt.points)
+
+    n1 = src.shape[0]
+    n2 = tgt.shape[0]
+    if n1 < n2:
+        tgt = tgt[:n1]
+    else:
+        src = src[:n2]
+
+    neighbors = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(tgt)
+    dists, idxs = neighbors.kneighbors(src)  # (16384*1), (16384*1)
+    return np.asarray([range(min(n1, n2)), idxs])
+
+# src, tgt 分别代表两个点云的数据，点云数量不一定相等
+# 目标：寻找两个点云一对一的对应关系，使得点对的欧式距离之和最小
+# 返回：src和tgt的idx
+def find_min_sum(src: np.ndarray, tgt: np.ndarray):
+    """
+    Find one-to-one correspondence between points in source and target point clouds to minimize the sum of Euclidean distances.
+
+    Parameters:
+        src (np.ndarray): Source point cloud, Nx3 array.
+        tgt (np.ndarray): Target point cloud, Mx3 array.
+
+    Returns:
+        src_indices (np.ndarray): Indices of corresponding points in the source cloud.
+        tgt_indices (np.ndarray): Indices of corresponding points in the target cloud.
+    """
+    # Build KD tree for the target point cloud
+    tree = cKDTree(tgt)
+
+    # Query the KD tree to find the nearest neighbors for each point in the source cloud
+    _, indices = tree.query(src, k=1)
+
+    # Return the indices of corresponding points
+    src_indices = np.arange(src.shape[0])
+    tgt_indices = np.asarray(indices.flatten())
+
+    return src_indices, tgt_indices

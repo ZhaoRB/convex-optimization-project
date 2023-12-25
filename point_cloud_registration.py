@@ -49,21 +49,18 @@ def globalReg(
     tgt_feat: np.ndarray,
     hyperparams,
 ) -> tuple[np.ndarray, np.ndarray]:
-    # 根据特征值找对应点
-    # corrIdx = np.asarray(find_nn(tgt_feat, src_feat))
-    # src_corr = src[corrIdx[1]]
-    # tgt_corr = tgt[corrIdx[0]]
+    # 根据特征值找对应点, 找特征值最接近的val_num个对应点
+    val_num = src.shape[0] // hyperparams["ratio"]
     corrIdx = np.asarray(
-        find_nn(src_feat, tgt_feat, src.shape[0] // hyperparams["ratio"])
+        find_nn(src_feat, tgt_feat, val_num)
     )
-
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
 
     print(f"tgtid: {corrIdx[:, 0]}")
     print(f"srcid: {corrIdx[:, 1]}")
 
-    # 粗配准
+    # 粗配准，SVD算法
     cen_source = np.mean(src_corr, axis=0)
     cen_target = np.mean(tgt_corr, axis=0)
     # 计算零中心配对点对
@@ -74,9 +71,59 @@ def globalReg(
     U, S, Vt = np.linalg.svd(H)
     R = np.dot(Vt.T, U.T)
     # 计算平移向量
-    T = cen_target - np.dot(R, cen_source)
+    t = cen_target - np.dot(R, cen_source)
 
-    return R, T
+    return R, t
+
+
+# global registration: 为icp计算初始值
+def icpSVD(
+    src: np.ndarray,
+    tgt: np.ndarray,
+    src_feat: np.ndarray,
+    tgt_feat: np.ndarray,
+    R,
+    t,
+    hyperparams,
+    src_all: np.ndarray,
+    tgt_all: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+
+    w1 = 0.5  # position weight
+    w2 = 0.5  # feature weight
+    src_ = copy.deepcopy(src)
+    for _ in range(20):
+        # 找对应点
+        val_num = src.shape[0] // 3
+        # corrIdx = find_nn(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
+        corrIdx = find_nn(src_, tgt, val_num)
+        # corrIdx = find_min_sum(src_, tgt)
+        src_corr = src_[corrIdx[:, 0].T]
+        tgt_corr = tgt[corrIdx[:, 1].T]
+        print(f"tgtid: {corrIdx[:, 0]}")
+        print(f"srcid: {corrIdx[:, 1]}")
+        # corrIdx = find_nn_corr(src_, tgt)
+        # src_corr = src_[]
+
+        cen_source = np.mean(src_corr, axis=0)
+        cen_target = np.mean(tgt_corr, axis=0)
+        # 计算零中心配对点对
+        cen_cor_source = src_corr - cen_source
+        cen_cor_tar = tgt_corr - cen_target
+        # 使用奇异值分解（SVD）估计旋转矩阵
+        H = np.dot(cen_cor_source.T, cen_cor_tar)
+        U, S, Vt = np.linalg.svd(H)
+
+        R_ = np.dot(Vt.T, U.T)
+        t_ = cen_target - np.dot(R_, cen_source)
+        R = R_ @ R
+        t = R_ @ t + t_
+        src_ = (R_ @ src_.T).T + t
+
+        reg_pcd = (R @ src_all.T).T + t
+        pcd_visualize([src_all, reg_pcd, tgt_all])
+
+    return R, t
 
 
 def pointCloudRegistration(prefix, name, hyperparams):
@@ -105,16 +152,16 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
         # 3. global registration
         # 注意: 这里的T是向量，不是矩阵
-        R, T = globalReg(
+        R, t = globalReg(
             src_pcd_salient,
             tgt_pcd_salient,
             src_salient_feature,
             tgt_salient_feature,
-            hyperparams["globalReg"]
+            hyperparams["globalReg"],
         )
 
         # global registration result visualization
-        golReg_pcd = (R @ src_pcd.T).T + T
+        golReg_pcd = (R @ src_pcd.T).T + t
         # compare_pcd([src_pcd, golReg_pcd, tgt_pcd])
         pcd_visualize([src_pcd, golReg_pcd, tgt_pcd])
         # pcd_visualize([src_pcd_salient, golReg_pcd[infos[idx]["all_idxs"]], tgt_pcd_salient])
@@ -127,7 +174,21 @@ def pointCloudRegistration(prefix, name, hyperparams):
         #     tgt_salient_feature,
         #     R, T,
         #     hyperparams["icp"],
+        #     src_pcd,
+        #     tgt_pcd,
+        #     True
         # )
+
+        R, t = icpSVD(
+            src_pcd_salient,
+            tgt_pcd_salient,
+            src_salient_feature,
+            tgt_salient_feature,
+            R, t,
+            hyperparams["globalReg"],
+            src_pcd,
+            tgt_pcd
+        )
 
         # print("=============local reg=================")
         # print(R @ R.T)
@@ -138,8 +199,8 @@ def pointCloudRegistration(prefix, name, hyperparams):
     return reg_res
 
 if __name__ == "__main__":
-    names = ["bunny", "room"]
-    # names = ["temple"]
+    # names = ["bunny", "room", "temple"]
+    names = ["bunny"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
     hyperparams = [
         {

@@ -56,7 +56,6 @@ def solve(X, Y):
         r = u @ vh
     return r, t
 
-
 def icp(
     src: np.ndarray,
     tgt: np.ndarray,
@@ -65,42 +64,37 @@ def icp(
     R: np.ndarray,
     t: np.ndarray,
     hyperparams: dict,
+    src_all: np.ndarray,
+    tgt_all: np.ndarray,
+    isVisual = False
 ):
     loss = []
-    w = 1  # feature的权重
-    s = w / 10 / hyperparams["maxIters"]
-    sim_feat = com_sim(src_feat, tgt_feat)
-    w1 = 0
-    w2 = 1
+    w1 = 1  # position weight
+    w2 = 0.1  # feature weight
+    src_ = np.transpose(R @ copy.deepcopy(src).T) + t
 
     for _ in tqdm(range(hyperparams["maxIters"])):
-        src_ = np.transpose(R @ copy.deepcopy(src).T) + t
-
-        # 找对应关系
-        # sim_pos = com_sim(src_, tgt)
-        # sim = (1 - w) * sim_pos + w * sim_feat
-
-        # # w = w - s  # 更新权重，随着迭代的进行，feat的权重越来越小
-
-        # sort_ind = np.zeros(sim.shape)
-        # for i in range(len(sim)):
-        #     sort_ind[i, :] = np.argsort(sim[i, :])
-
+        # find correspond points by position and features
         val_num = src.shape[0] // 4
-        # tgt_idx, src_idx = pro(sort_ind[:, 0], val_num)
-        # tgt_idx = [int(x) for x in tgt_idx]
-        corr = find_nn_posAndFeat(src, tgt, src_feat, tgt_feat, w1, w2, val_num)
+        corr = find_nn_posAndFeat(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
         src_idx = corr[:, 0].T
         tgt_idx = corr[:, 1].T
 
-
+        # solve convex problem
         R_, t_ = solve(src_[src_idx, :].T, tgt[tgt_idx, :].T)
         if np.linalg.norm(R_ - R) < 1e-6:
             print("early stop, the problem has already converged")
             break
         R = R_ @ R
         t = R_ @ t + t_
+
+        src_ = np.transpose(R @ copy.deepcopy(src_).T) + t
+
         loss.append(com_loss((R @ src_[src_idx, :].T).T + t, tgt[tgt_idx, :]))
+
+        if isVisual:
+            cur_all = (R @ src_all.T).T + t 
+            pcd_visualize([cur_all, tgt_all])
 
     # print(loss)
     plt.figure()
