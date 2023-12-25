@@ -3,18 +3,14 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
-import point_cloud_utils as pcu
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
 
 
 def loadData(pathPrefix: str, name: str):
     pcd_1 = o3d.io.read_point_cloud(f"{pathPrefix}/{name}-pcd-1.ply")
-    pcd_1_points = np.asarray(pcd_1.points)
     pcd_2 = o3d.io.read_point_cloud(f"{pathPrefix}/{name}-pcd-2.ply")
-    pcd_1_points = np.asarray(pcd_1.points)
     pcd_3 = o3d.io.read_point_cloud(f"{pathPrefix}/{name}-pcd-3.ply")
-    pcd_1_points = np.asarray(pcd_1.points)
 
     json_path = f"{pathPrefix}/points.json"
     with open(json_path, "r") as file:
@@ -149,31 +145,6 @@ def npToPcd(array):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(array)
     return pcd
-
-
-# 找到矩阵中最小的几个对应点
-def findMinInMatrix(matrix, num):
-    idx1 = []
-    idx2 = []
-    visited_row = set()
-    visited_col = set()
-    for _ in range(num):
-        # find minimum
-        mini = [0, 0, float("inf")]
-        for i in range(matrix.shape[0]):
-            if i in visited_row:
-                continue
-            for j in range(matrix.shape[1]):
-                if j in visited_col:
-                    continue
-                cur = matrix[i][j]
-                if cur < mini[2]:
-                    mini = [i, j, cur]
-        idx1.append(mini[0])
-        idx2.append(mini[1])
-        visited_row.add(mini[0])
-        visited_col.add(mini[1])
-        return np.array(idx1), np.array(idx2)
 
 
 def pcd_visualize(point_collections: list[np.ndarray]):

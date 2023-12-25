@@ -120,20 +120,20 @@ def pointCloudRegistration(prefix, name, hyperparams):
         # pcd_visualize([src_pcd_salient, golReg_pcd[infos[idx]["all_idxs"]], tgt_pcd_salient])
 
         # 4. local registration
-        R, T = icp(
-            src_pcd_salient,
-            tgt_pcd_salient,
-            src_salient_feature,
-            tgt_salient_feature,
-            R, T,
-            hyperparams["icp"],
-        )
+        # R, T = icp(
+        #     src_pcd_salient,
+        #     tgt_pcd_salient,
+        #     src_salient_feature,
+        #     tgt_salient_feature,
+        #     R, T,
+        #     hyperparams["icp"],
+        # )
 
-        print("=============local reg=================")
-        print(R @ R.T)
+        # print("=============local reg=================")
+        # print(R @ R.T)
 
-        icp_pcd = (R @ src_pcd.T).T + T
-        pcd_visualize([src_pcd, icp_pcd, tgt_pcd])
+        # icp_pcd = (R @ src_pcd.T).T + T
+        # pcd_visualize([src_pcd, icp_pcd, tgt_pcd])
 
     return reg_res
 
@@ -178,3 +178,4 @@ if __name__ == "__main__":
     
     for idx, name in enumerate(names):
         res = pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[idx])
+
