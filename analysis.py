@@ -55,10 +55,10 @@ def findCorrFromGT(prefix, name, hyperparams):
 
         # 可视化
         # pcd_visualize([src_pcd, gt_src_pcd, tgt_pcd])
-        # pcd_visualize([src_pcd_salient, gt_src_pcd_salient, tgt_pcd_salient])
+        pcd_visualize([src_pcd_salient, gt_src_pcd_salient, tgt_pcd_salient])
 
         # 通过 gt 找对应点
-        corrIdx = find_nn(gt_src_pcd_salient, tgt_pcd_salient)
+        corrIdx = find_nn(gt_src_pcd_salient, tgt_pcd_salient)[:8]
         print(f"src_idx: {corrIdx[:, 0]}")
         print(f"tgt_idx: {corrIdx[:, 1]}")
 
@@ -66,14 +66,15 @@ def findCorrFromGT(prefix, name, hyperparams):
         # print(f"src_idx: {corr[0]}")
         # print(f"tgt_idx: {corr[1]}")
 
-        # # 通过 feature 找对应点
-        # corrByFeat = find_nn(src_salient_feature, tgt_salient_feature)
-        # print(f"src_idx: {corrByFeat[:, 0]}")
-        # print(f"tgt_idx: {corrByFeat[:, 1]}")
+        # 通过 feature 找对应点
+        corrByFeat = find_nn(src_salient_feature, tgt_salient_feature)[:8]
+        print(f"src_idx: {corrByFeat[:, 0]}")
+        print(f"tgt_idx: {corrByFeat[:, 1]}")
 
 
 if __name__ == "__main__":
-    names = ["bunny", "room", "temple"]
+    # names = ["bunny", "room", "temple"]
+    names = ["temple"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
     hyperparams = [
         {
@@ -98,10 +99,10 @@ if __name__ == "__main__":
         },
         {
             "fpfh": {
-                "r_normal": 5,
-                "r_fpfh": 5,
-                "max_nn_norm": 600,
-                "max_nn_fpfh": 600,
+                "r_normal": 1,
+                "r_fpfh": 1,
+                "max_nn_norm": 1000,
+                "max_nn_fpfh": 1000,
             },
             "globalReg": {"ratio": 4},
             "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},

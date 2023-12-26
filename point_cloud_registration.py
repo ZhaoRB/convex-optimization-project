@@ -50,7 +50,8 @@ def globalReg(
     hyperparams,
 ) -> tuple[np.ndarray, np.ndarray]:
     # 根据特征值找对应点, 找特征值最接近的val_num个对应点
-    val_num = src.shape[0] // hyperparams["ratio"]
+    val_num = tgt.shape[0] // hyperparams["ratio"]
+    print(tgt.shape[0], val_num)
     corrIdx = np.asarray(find_nn(src_feat, tgt_feat, val_num))
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
@@ -152,40 +153,40 @@ def pointCloudRegistration(prefix, name, hyperparams):
         pcd_visualize([src_pcd, golReg_pcd, tgt_pcd])
 
         # 4. fine registration
-        print("==================start local registration==================")
-        R, t = fineReg(
-            src_pcd_salient,
-            tgt_pcd_salient,
-            src_salient_feature,
-            tgt_salient_feature,
-            src_pcd,
-            tgt_pcd,
-            R,
-            t,
-            hyperparams["fineReg"],
-            "svd",
-            True,
-        )
+        # print("==================start local registration==================")
+        # R, t = fineReg(
+        #     src_pcd_salient,
+        #     tgt_pcd_salient,
+        #     src_salient_feature,
+        #     tgt_salient_feature,
+        #     src_pcd,
+        #     tgt_pcd,
+        #     R,
+        #     t,
+        #     hyperparams["fineReg"],
+        #     "svd",
+        #     True,
+        # )
 
     return reg_res
 
 
 if __name__ == "__main__":
     # names = ["bunny", "room", "temple"]
-    names = ["temple"]
+    names = ["bunny"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
-    hyperparams = [
-        {
+    hyperparams = {
+        "bunny": {
             "fpfh": {
                 "r_normal": 0.05,
                 "r_fpfh": 0.05,
                 "max_nn_norm": 40,
-                "max_nn_fpfh": 70,
+                "max_nn_fpfh": 80,
             },
-            "globalReg": {"ratio": 3},
+            "globalReg": {"ratio": 4},
             "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 1},
         },
-        {
+        "room": {
             "fpfh": {
                 "r_normal": 0.05,
                 "r_fpfh": 0.05,
@@ -195,19 +196,19 @@ if __name__ == "__main__":
             "globalReg": {"ratio": 4},
             "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
         },
-        {
+        "temple": {
             "fpfh": {
-                "r_normal": 1,
+                "r_normal": 0.5,
                 "r_fpfh": 1,
-                "max_nn_norm": 1000,
+                "max_nn_norm": 500,
                 "max_nn_fpfh": 1000,
             },
             "globalReg": {"ratio": 3},
             "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
-        },
-    ]
+        }
+    }
 
     reg_res = []
 
     for idx, name in enumerate(names):
-        res = pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[idx])
+        res = pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[name])
