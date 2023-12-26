@@ -1,4 +1,5 @@
 import json
+import copy
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,21 +27,16 @@ def loadData(pathPrefix: str, name: str):
 def find_nn(points1, points2, k=None):
     if not k:
         k = min(points1.shape[0], points2.shape[0])
-
     # 计算两个数组中所有点的距离矩阵
     distances = cdist(points1, points2)
-
     # 初始化匹配对列表
     matches = []
-
     # 找到最近邻匹配对
     for _ in range(k):
         # 找到最小距离的索引
         idx = np.unravel_index(np.argmin(distances), distances.shape)
-
         # 添加匹配对到列表
         matches.append((idx[0], idx[1]))
-
         # 将已匹配的点的距离设为无穷大，以避免重复匹配
         distances[idx[0], :] = np.inf
         distances[:, idx[1]] = np.inf
@@ -56,49 +52,17 @@ def find_nn_posAndFeat(points1, points2, feat1, feat2, pos_w, feat_w, k):
 
     # 初始化匹配对列表
     matches = []
-
     # 找到最近邻匹配对
     for _ in range(k):
         # 找到最小距离的索引
         idx = np.unravel_index(np.argmin(distances), distances.shape)
-
         # 添加匹配对到列表
         matches.append((idx[0], idx[1]))
-
         # 将已匹配的点的距离设为无穷大，以避免重复匹配
         distances[idx[0], :] = np.inf
         distances[:, idx[1]] = np.inf
 
     return np.asarray(matches)
-
-
-# 找最近邻 (这里src和tgt反了)
-def find_n(src, tgt):
-    nk = len(src)
-    neighbors = NearestNeighbors(n_neighbors=nk, algorithm="kd_tree").fit(tgt)
-    dists, idxs = neighbors.kneighbors(src)
-    # 可用数量
-    # val_num = int(np.floor(nk * 0.25))
-    val_num = int(np.floor(nk * 0.20))
-    srcid = np.argsort(dists[:, 0])
-    tgtid = idxs[srcid, 0]
-    tgtid_, indices = pro(tgtid, val_num)
-    srcid_ = srcid[indices]
-    return [srcid_, tgtid_]
-
-
-def pro(lst, n):
-    seen = set()
-    result = []
-    indices = []
-    for i, num in enumerate(lst):
-        if len(result) == n:
-            break
-        if num not in seen:
-            seen.add(num)
-            result.append(num)
-            indices.append(i)
-    return result, indices
 
 
 def compare_pcd(pcds, labels=None, path=None):
@@ -166,41 +130,7 @@ def pcd_visualize(point_collections: list[np.ndarray]):
     o3d.visualization.draw_geometries([merged_pcd])
 
 
-def find_nn_corr(src, tgt):
-    """Given two input point clouds, find nearest-neighbor correspondence (from source to target)
-    Input:
-        - src: Source point cloud (n*3), either array or open3d pcd
-        - tgt: Target point cloud (n*3), either array or open3d pcd
-    Output:
-        - idxs: Array indices corresponds to src points,
-            array elements corresponds to nn in tgt points (n, np.array)
-    """
-
-    """ Way1: Sklearn"""
-    if src.shape[1] != 3:
-        src = src.T
-    if tgt.shape[1] != 3:
-        tgt = tgt.T
-
-    if not isinstance(src, np.ndarray):
-        src = np.asarray(src.points)  # (16384*3)
-        tgt = np.asarray(tgt.points)
-
-    n1 = src.shape[0]
-    n2 = tgt.shape[0]
-    if n1 < n2:
-        tgt = tgt[:n1]
-    else:
-        src = src[:n2]
-
-    neighbors = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(tgt)
-    dists, idxs = neighbors.kneighbors(src)  # (16384*1), (16384*1)
-    return np.asarray([range(min(n1, n2)), idxs])
-
-# src, tgt 分别代表两个点云的数据，点云数量不一定相等
-# 目标：寻找两个点云一对一的对应关系，使得点对的欧式距离之和最小
-# 返回：src和tgt的idx
-def find_min_sum(src: np.ndarray, tgt: np.ndarray):
+def find_nn_kdTree(src: np.ndarray, tgt: np.ndarray):
     """
     Find one-to-one correspondence between points in source and target point clouds to minimize the sum of Euclidean distances.
 
@@ -229,3 +159,11 @@ def com_loss(A, B):
     d = np.linalg.norm(A - B, axis=1)  # 计算每一行的距离
     sum_d = np.sum(d)
     return sum_d / len(A)
+
+def sortAndShow(corr, s=True):
+    corrIdx_ = copy.deepcopy(corr)
+    if s:
+        sorted_indices = np.argsort(corrIdx_[:, 0])
+        corrIdx_ = corrIdx_[sorted_indices]
+    print(f"src_idx: {corrIdx_[:, 0]}")
+    print(f"tgt_idx: {corrIdx_[:, 1]}")

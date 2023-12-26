@@ -55,10 +55,14 @@ def globalReg(
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
 
-    print(f"src_idx: {corrIdx[:, 0]}")
-    print(f"tgt_idx: {corrIdx[:, 1]}")
+    sortAndShow(corrIdx, False)
+    # print(f"src_idx: {corrIdx[:, 0]}")
+    # print(f"tgt_idx: {corrIdx[:, 1]}")
 
-    R, t = svdSolver(src_corr, tgt_corr)
+
+    # solve
+    # R, t = svdSolver(src_corr, tgt_corr)
+    R, t = convexRelaxSolver(src_corr.T, tgt_corr.T)
     return R, t
 
 
@@ -80,19 +84,16 @@ def fineReg(
     corrIdxFeat = find_nn(src_feat, tgt_feat, src.shape[0] // 3).T
     print(corrIdxFeat)
     # corrIdxFeat = corrIdxFeat[:, : corrIdxFeat.shape[0] // 3]
-    src_ = src[corrIdxFeat[0]]
-    tgt_ = tgt[corrIdxFeat[1]]
-    src_ = (R @ src_.T).T + t
+    src_, tgt_ = src[corrIdxFeat[0]], tgt[corrIdxFeat[1]]
 
-    for _ in range(5):
+    for _ in range(10):
         # 找对应点
         # val_num = src.shape[0] // 3
         # corrIdx = find_nn(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
         # corrIdx = find_nn(src_, tgt, val_num)
-        corrIdx = find_min_sum(src_, tgt_)
-        src_corr = src_[corrIdx[0].T]
-        tgt_corr = tgt[corrIdx[1].T]
-        print(corrIdx)
+        corrIdx = find_nn_kdTree(src_, tgt_)
+        src_corr, tgt_corr = src_[corrIdx[0].T], tgt_[corrIdx[1].T]
+        print(f"corrspond index:\n{corrIdx}")
 
         # solve
         if solver == "svd":
@@ -106,8 +107,9 @@ def fineReg(
         src_ = (R_ @ src_.T).T + t
 
         # visualize
-        reg_pcd = (R @ src_all.T).T + t
-        pcd_visualize([src_all, reg_pcd, tgt_all])
+        if isVisual:
+            reg_pcd = (R @ src_all.T).T + t
+            pcd_visualize([src_all, reg_pcd, tgt_all])
 
     return R, t
 
@@ -138,6 +140,7 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
         # 3. global registration
         # 注意: 这里的t是向量，不是矩阵
+        print("==================start global registration==================")
         R, t = globalReg(
             src_pcd_salient,
             tgt_pcd_salient,
@@ -151,6 +154,7 @@ def pointCloudRegistration(prefix, name, hyperparams):
         pcd_visualize([src_pcd, golReg_pcd, tgt_pcd])
 
         # 4. fine registration
+        print("==================start local registration==================")
         R, t = fineReg(
             src_pcd_salient,
             tgt_pcd_salient,
@@ -162,7 +166,7 @@ def pointCloudRegistration(prefix, name, hyperparams):
             t,
             hyperparams["fineReg"],
             "svd",
-            True
+            True,
         )
 
     return reg_res
@@ -170,18 +174,18 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
 if __name__ == "__main__":
     # names = ["bunny", "room", "temple"]
-    names = ["bunny"]
+    names = ["temple"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
     hyperparams = [
         {
             "fpfh": {
                 "r_normal": 0.05,
                 "r_fpfh": 0.05,
-                "max_nn_norm": 30,
-                "max_nn_fpfh": 50,
+                "max_nn_norm": 40,
+                "max_nn_fpfh": 70,
             },
             "globalReg": {"ratio": 3},
-            "fineReg": {"w1": 0.1, "maxIters": 20},
+            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 1},
         },
         {
             "fpfh": {
@@ -191,17 +195,17 @@ if __name__ == "__main__":
                 "max_nn_fpfh": 50,
             },
             "globalReg": {"ratio": 4},
-            "fineReg": {"w": 0.1, "maxIters": 20},
+            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
         },
         {
             "fpfh": {
-                "r_normal": 0.1,
-                "r_fpfh": 0.1,
-                "max_nn_norm": 300,
-                "max_nn_fpfh": 500,
+                "r_normal": 1,
+                "r_fpfh": 1,
+                "max_nn_norm": 1000,
+                "max_nn_fpfh": 1000,
             },
-            "globalReg": {"ratio": 4},
-            "fineReg": {"w": 0.1, "maxIters": 20},
+            "globalReg": {"ratio": 3},
+            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
         },
     ]
 

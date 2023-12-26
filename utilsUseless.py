@@ -1,5 +1,6 @@
 # 暂时用不上的函数
 import numpy as np
+from sklearn.neighbors import NearestNeighbors
 
 # 找到矩阵中最小的几个对应点
 def findMinInMatrix(matrix, num):
@@ -24,3 +25,32 @@ def findMinInMatrix(matrix, num):
         visited_row.add(mini[0])
         visited_col.add(mini[1])
         return np.array(idx1), np.array(idx2)
+    
+
+# 找最近邻 (这里src和tgt反了)
+def find_n(src, tgt):
+    nk = len(src)
+    neighbors = NearestNeighbors(n_neighbors=nk, algorithm="kd_tree").fit(tgt)
+    dists, idxs = neighbors.kneighbors(src)
+    # 可用数量
+    # val_num = int(np.floor(nk * 0.25))
+    val_num = int(np.floor(nk * 0.20))
+    srcid = np.argsort(dists[:, 0])
+    tgtid = idxs[srcid, 0]
+    tgtid_, indices = pro(tgtid, val_num)
+    srcid_ = srcid[indices]
+    return [srcid_, tgtid_]
+
+
+def pro(lst, n):
+    seen = set()
+    result = []
+    indices = []
+    for i, num in enumerate(lst):
+        if len(result) == n:
+            break
+        if num not in seen:
+            seen.add(num)
+            result.append(num)
+            indices.append(i)
+    return result, indices
