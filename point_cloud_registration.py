@@ -55,10 +55,8 @@ def globalReg(
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
 
-    sortAndShow(corrIdx, False)
-    # print(f"src_idx: {corrIdx[:, 0]}")
-    # print(f"tgt_idx: {corrIdx[:, 1]}")
-
+    print(f"src_idx: {corrIdx[:, 0]}")
+    print(f"tgt_idx: {corrIdx[:, 1]}")
 
     # solve
     # R, t = svdSolver(src_corr, tgt_corr)
