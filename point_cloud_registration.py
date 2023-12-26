@@ -51,13 +51,18 @@ def globalReg(
 ) -> tuple[np.ndarray, np.ndarray]:
     # 根据特征值找对应点, 找特征值最接近的val_num个对应点
     val_num = tgt.shape[0] // hyperparams["ratio"]
-    print(tgt.shape[0], val_num)
     corrIdx = np.asarray(find_nn(src_feat, tgt_feat, val_num))
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
 
     print(f"src_idx: {corrIdx[:, 0]}")
     print(f"tgt_idx: {corrIdx[:, 1]}")
+
+    corrIdxIdx = corrSubPcd(src_corr, tgt_corr)
+    print(f"src_idx: {corrIdx[:, 0][corrIdxIdx]}")
+    print(f"tgt_idx: {corrIdx[:, 1][corrIdxIdx]}")
+    src_corr = src_corr[corrIdxIdx]
+    tgt_corr = tgt_corr[corrIdxIdx]
 
     # solve
     # R, t = svdSolver(src_corr, tgt_corr)
@@ -76,29 +81,29 @@ def fineReg(
     R: np.ndarray,
     t: np.ndarray,
     hyperparams: dict,
-    solver: str = "svd",
     isVisual=False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    # 先用feature筛选掉一半的点
-    corrIdxFeat = find_nn(src_feat, tgt_feat, src.shape[0] // 3).T
-    print(corrIdxFeat)
-    # corrIdxFeat = corrIdxFeat[:, : corrIdxFeat.shape[0] // 3]
-    src_, tgt_ = src[corrIdxFeat[0]], tgt[corrIdxFeat[1]]
+    src_ = (R @ src.T).T + t
+    w1, w2 = hyperparams["w1"], hyperparams["w2"]
 
-    for _ in range(10):
+    for _ in range(hyperparams["maxIters"]):
         # 找对应点
-        # val_num = src.shape[0] // 3
-        # corrIdx = find_nn(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
-        # corrIdx = find_nn(src_, tgt, val_num)
-        corrIdx = find_nn_kdTree(src_, tgt_)
-        src_corr, tgt_corr = src_[corrIdx[0].T], tgt_[corrIdx[1].T]
-        print(f"corrspond index:\n{corrIdx}")
+        # val_num = tgt.shape[0] // hyperparams["ratio"]
+        # corrIdx = find_nn_posAndFeat(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
+        # # corrIdx = find_nn(src_, tgt, val_num)
+        # # corrIdx = find_nn_kdTree(src_, tgt)
+        # src_corr, tgt_corr = src_[corrIdx[:, 0]], tgt[corrIdx[:, 1]]
+        # print(f"src_idx: {corrIdx[:, 0]}")
+        # print(f"tgt_idx: {corrIdx[:, 1]}")
+
+        val_num = tgt.shape[0] // hyperparams["ratio"]
+        corrIdx = np.asarray(find_nn(src_feat, tgt_feat, val_num))
+        # 这里的对应关系是有顺序的，特征值距离最近的排第一个（所以可以认为第一对是最有可能是对应点的）
+        src_corr, tgt_corr = src[corrIdx[:, 0].T], tgt[corrIdx[:, 1].T] 
 
         # solve
-        if solver == "svd":
-            R_, t_ = svdSolver(src_corr, tgt_corr)
-        else:
-            R_, t_ = convexRelaxSolver(src_corr, tgt_corr)
+        # R_, t_ = svdSolver(src_corr, tgt_corr)
+        R_, t_ = convexRelaxSolver(src_corr.T, tgt_corr.T)
 
         # update
         R = R_ @ R
@@ -164,7 +169,6 @@ def pointCloudRegistration(prefix, name, hyperparams):
         #     R,
         #     t,
         #     hyperparams["fineReg"],
-        #     "svd",
         #     True,
         # )
 
@@ -172,8 +176,8 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
 
 if __name__ == "__main__":
-    # names = ["bunny", "room", "temple"]
-    names = ["bunny"]
+    names = ["bunny", "room", "temple"]
+    # names = ["bunny"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
     hyperparams = {
         "bunny": {
@@ -184,7 +188,7 @@ if __name__ == "__main__":
                 "max_nn_fpfh": 80,
             },
             "globalReg": {"ratio": 4},
-            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 1},
+            "fineReg": {"w1": 0.1, "w2": 1, "maxIters": 5, "ratio": 4},
         },
         "room": {
             "fpfh": {
@@ -194,7 +198,7 @@ if __name__ == "__main__":
                 "max_nn_fpfh": 50,
             },
             "globalReg": {"ratio": 4},
-            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
+            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20, "ratio": 4},
         },
         "temple": {
             "fpfh": {
@@ -204,8 +208,8 @@ if __name__ == "__main__":
                 "max_nn_fpfh": 1000,
             },
             "globalReg": {"ratio": 3},
-            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
-        }
+            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20, "ratio": 3},
+        },
     }
 
     reg_res = []

@@ -76,18 +76,18 @@ if __name__ == "__main__":
     # names = ["bunny", "room", "temple"]
     names = ["temple"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
-    hyperparams = [
-        {
+    hyperparams = {
+        "bunny": {
             "fpfh": {
                 "r_normal": 0.05,
                 "r_fpfh": 0.05,
                 "max_nn_norm": 40,
-                "max_nn_fpfh": 70,
+                "max_nn_fpfh": 80,
             },
-            "globalReg": {"ratio": 3},
+            "globalReg": {"ratio": 4},
             "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 1},
         },
-        {
+        "room": {
             "fpfh": {
                 "r_normal": 0.05,
                 "r_fpfh": 0.05,
@@ -97,17 +97,17 @@ if __name__ == "__main__":
             "globalReg": {"ratio": 4},
             "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
         },
-        {
+        "temple": {
             "fpfh": {
-                "r_normal": 1,
+                "r_normal": 0.5,
                 "r_fpfh": 1,
-                "max_nn_norm": 1000,
+                "max_nn_norm": 500,
                 "max_nn_fpfh": 1000,
             },
-            "globalReg": {"ratio": 4},
+            "globalReg": {"ratio": 3},
             "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20},
-        },
-    ]
+        }
+    }
 
     for idx, name in enumerate(names):
-        res = findCorrFromGT(f"{prefix}/{name}-pcd", name, hyperparams[idx])
+        res = findCorrFromGT(f"{prefix}/{name}-pcd", name, hyperparams[name])

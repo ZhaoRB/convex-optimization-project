@@ -1,11 +1,11 @@
-import json
 import copy
+import json
 
 import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
-from scipy.spatial.distance import cdist
 from scipy.spatial import cKDTree
+from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
 
 
@@ -160,6 +160,7 @@ def com_loss(A, B):
     sum_d = np.sum(d)
     return sum_d / len(A)
 
+
 def sortAndShow(corr, s=True):
     corrIdx_ = copy.deepcopy(corr)
     if s:
@@ -167,3 +168,37 @@ def sortAndShow(corr, s=True):
         corrIdx_ = corrIdx_[sorted_indices]
     print(f"src_idx: {corrIdx_[:, 0]}")
     print(f"tgt_idx: {corrIdx_[:, 1]}")
+
+
+def corrSubPcd(pcd1, pcd2):
+    """
+    找对应的子点云
+    先验：
+        pcd1, pcd2 是有序的，根据 distance(pcd1_feature, pcd2_feature) 从小到大排序
+        所以 pcd1[0] 和 pcd2[0] 极有可能是对应点
+    """
+    n = pcd1.shape[0]  # 也等于 pcd2.shape[0]
+    dist1, dist2 = cdist(pcd1, pcd1), cdist(pcd2, pcd2)
+
+    threshold = 6e-3
+
+    for i in range(n):
+        ne = n - i - 1
+        # for p in range(ne):
+        #     for q in range(ne):
+        #         dis_err[p, q] = abs(dist1[i, p + i + 1] - dist2[i, q + i + 1])
+        dis_err = np.abs(dist1[i, i + 1 :] - dist2[i, i + 1 :])
+        idx = np.where(dis_err < threshold)[0]
+
+        if idx.size > 0:
+            idx = idx + i + 1
+            idx = idx.astype(int)
+            return np.insert(idx, 0, i)
+        # coordinates = np.vstack(np.where(dis_err < threshold)).T
+        # 如果大于0，这些对应点就是要找的点
+        # if coordinates.size() > 0:
+        #     # 有映射关系
+        #     coordinates = coordinates + i + 1
+        #     return coordinates
+
+    return np.asarray([])
