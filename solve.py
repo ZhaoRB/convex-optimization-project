@@ -1,14 +1,10 @@
-import copy
-
 import cvxpy as cp
-import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import tqdm
 
 from utils import *
 
 
-# class ConvexRelaxationSolver:
+# Convex Relaxation Solver
 # X是src，Y是tgt
 def convexRelaxSolver(X, Y):
     r = cp.Variable((3, 3))
@@ -56,6 +52,7 @@ def convexRelaxSolver(X, Y):
         r = u @ vh
     return r, t
 
+
 def svdSolver(src, tgt):
     # 粗配准，SVD算法
     cen_source = np.mean(src, axis=0)
@@ -69,56 +66,5 @@ def svdSolver(src, tgt):
     R = np.dot(Vt.T, U.T)
     # 计算平移向量
     t = cen_target - np.dot(R, cen_source)
-    
-    return R, t
-
-def icp(
-    src: np.ndarray,
-    tgt: np.ndarray,
-    src_feat: np.ndarray,
-    tgt_feat: np.ndarray,
-    R: np.ndarray,
-    t: np.ndarray,
-    hyperparams: dict,
-    src_all: np.ndarray,
-    tgt_all: np.ndarray,
-    isVisual = False
-):
-    loss = []
-    w1 = 1  # position weight
-    w2 = 0.1  # feature weight
-    src_ = np.transpose(R @ copy.deepcopy(src).T) + t
-
-    for _ in tqdm(range(hyperparams["maxIters"])):
-        # find correspond points by position and features
-        val_num = src.shape[0] // 4
-        corr = find_nn_posAndFeat(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
-        src_idx = corr[:, 0].T
-        tgt_idx = corr[:, 1].T
-
-        # solve convex problem
-        R_, t_ = convexRelaxSolver(src_[src_idx, :].T, tgt[tgt_idx, :].T)
-        if np.linalg.norm(R_ - R) < 1e-6:
-            print("early stop, the problem has already converged")
-            break
-        R = R_ @ R
-        t = R_ @ t + t_
-
-        src_ = np.transpose(R @ copy.deepcopy(src_).T) + t
-
-        loss.append(com_loss((R @ src_[src_idx, :].T).T + t, tgt[tgt_idx, :]))
-
-        if isVisual:
-            cur_all = (R @ src_all.T).T + t 
-            pcd_visualize([cur_all, tgt_all])
-
-    # print(loss)
-    plt.figure()
-    plt.plot(range(len(loss)), loss)
-    plt.show()
 
     return R, t
-
-
-
-

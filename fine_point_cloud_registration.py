@@ -41,7 +41,8 @@ def featureExtraction(
     return key_points_fpfh.T
 
 
-def registration(
+# global registration: 为icp计算初始值
+def globalReg(
     src: np.ndarray,
     tgt: np.ndarray,
     src_feat: np.ndarray,
@@ -53,19 +54,67 @@ def registration(
     corrIdx = np.asarray(find_nn(src_feat, tgt_feat, val_num))
     src_corr = src[corrIdx[:, 0].T]
     tgt_corr = tgt[corrIdx[:, 1].T]
+
     print(f"src_idx: {corrIdx[:, 0]}")
     print(f"tgt_idx: {corrIdx[:, 1]}")
 
-    # 继续筛选对应点
-    corrIdxIdx = findCorrSubPcd(src_corr, tgt_corr, hyperparams["threshold"])
-    src_corr = src_corr[corrIdxIdx]
-    tgt_corr = tgt_corr[corrIdxIdx]
+    corrIdxIdx = corrSubPcd(src_corr, tgt_corr)
     print(f"src_idx: {corrIdx[:, 0][corrIdxIdx]}")
     print(f"tgt_idx: {corrIdx[:, 1][corrIdxIdx]}")
+    src_corr = src_corr[corrIdxIdx]
+    tgt_corr = tgt_corr[corrIdxIdx]
 
     # solve
     # R, t = svdSolver(src_corr, tgt_corr)
     R, t = convexRelaxSolver(src_corr.T, tgt_corr.T)
+    return R, t
+
+
+# fine registration
+def fineReg(
+    src: np.ndarray,
+    tgt: np.ndarray,
+    src_feat: np.ndarray,
+    tgt_feat: np.ndarray,
+    src_all: np.ndarray,
+    tgt_all: np.ndarray,
+    R: np.ndarray,
+    t: np.ndarray,
+    hyperparams: dict,
+    isVisual=False,
+) -> tuple[np.ndarray, np.ndarray]:
+    src_ = (R @ src.T).T + t
+    w1, w2 = hyperparams["w1"], hyperparams["w2"]
+
+    for _ in range(hyperparams["maxIters"]):
+        # 找对应点
+        # val_num = tgt.shape[0] // hyperparams["ratio"]
+        # corrIdx = find_nn_posAndFeat(src_, tgt, src_feat, tgt_feat, w1, w2, val_num)
+        # # corrIdx = find_nn(src_, tgt, val_num)
+        # # corrIdx = find_nn_kdTree(src_, tgt)
+        # src_corr, tgt_corr = src_[corrIdx[:, 0]], tgt[corrIdx[:, 1]]
+        # print(f"src_idx: {corrIdx[:, 0]}")
+        # print(f"tgt_idx: {corrIdx[:, 1]}")
+
+        val_num = tgt.shape[0] // hyperparams["ratio"]
+        corrIdx = np.asarray(find_nn(src_feat, tgt_feat, val_num))
+        # 这里的对应关系是有顺序的，特征值距离最近的排第一个（所以可以认为第一对是最有可能是对应点的）
+        src_corr, tgt_corr = src[corrIdx[:, 0].T], tgt[corrIdx[:, 1].T] 
+
+        # solve
+        # R_, t_ = svdSolver(src_corr, tgt_corr)
+        R_, t_ = convexRelaxSolver(src_corr.T, tgt_corr.T)
+
+        # update
+        R = R_ @ R
+        t = R_ @ t + t_
+        src_ = (R_ @ src_.T).T + t
+
+        # visualize
+        if isVisual:
+            reg_pcd = (R @ src_all.T).T + t
+            pcd_visualize([src_all, reg_pcd, tgt_all])
+
     return R, t
 
 
@@ -93,20 +142,35 @@ def pointCloudRegistration(prefix, name, hyperparams):
         src_pcd_salient = src_pcd[infos[idx]["all_idxs"]]
         src_salient_feature = salient_features[idx]
 
-        # 3. 配准 registration
+        # 3. global registration
         # 注意: 这里的t是向量，不是矩阵
-        print("==================start registration==================")
-        R, t = registration(
+        print("==================start global registration==================")
+        R, t = globalReg(
             src_pcd_salient,
             tgt_pcd_salient,
             src_salient_feature,
             tgt_salient_feature,
-            hyperparams["registration"],
+            hyperparams["globalReg"],
         )
 
         # visualization
-        reg_pcd = (R @ src_pcd.T).T + t
-        pcd_visualize([src_pcd, reg_pcd, tgt_pcd])
+        golReg_pcd = (R @ src_pcd.T).T + t
+        pcd_visualize([src_pcd, golReg_pcd, tgt_pcd])
+
+        # 4. fine registration
+        # print("==================start local registration==================")
+        # R, t = fineReg(
+        #     src_pcd_salient,
+        #     tgt_pcd_salient,
+        #     src_salient_feature,
+        #     tgt_salient_feature,
+        #     src_pcd,
+        #     tgt_pcd,
+        #     R,
+        #     t,
+        #     hyperparams["fineReg"],
+        #     True,
+        # )
 
     return reg_res
 
@@ -121,9 +185,10 @@ if __name__ == "__main__":
                 "r_normal": 0.05,
                 "r_fpfh": 0.05,
                 "max_nn_norm": 40,
-                "max_nn_fpfh": 50,
+                "max_nn_fpfh": 80,
             },
-            "registration": {"ratio": 4, "threshold": 6e-3},
+            "globalReg": {"ratio": 4},
+            "fineReg": {"w1": 0.1, "w2": 1, "maxIters": 5, "ratio": 4},
         },
         "room": {
             "fpfh": {
@@ -132,16 +197,18 @@ if __name__ == "__main__":
                 "max_nn_norm": 30,
                 "max_nn_fpfh": 50,
             },
-            "registration": {"ratio": 4, "threshold": 0.1},
+            "globalReg": {"ratio": 4},
+            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20, "ratio": 4},
         },
         "temple": {
             "fpfh": {
                 "r_normal": 0.5,
                 "r_fpfh": 1,
                 "max_nn_norm": 500,
-                "max_nn_fpfh": 1200,
+                "max_nn_fpfh": 1000,
             },
-            "registration": {"ratio": 3, "threshold": 5e-2},
+            "globalReg": {"ratio": 3},
+            "fineReg": {"w1": 0.1, "w2": 0.1, "maxIters": 20, "ratio": 3},
         },
     }
 

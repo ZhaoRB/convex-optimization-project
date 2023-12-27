@@ -4,9 +4,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
-from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
-from sklearn.neighbors import NearestNeighbors
 
 
 def loadData(pathPrefix: str, name: str):
@@ -29,27 +27,6 @@ def find_nn(points1, points2, k=None):
         k = min(points1.shape[0], points2.shape[0])
     # 计算两个数组中所有点的距离矩阵
     distances = cdist(points1, points2)
-    # 初始化匹配对列表
-    matches = []
-    # 找到最近邻匹配对
-    for _ in range(k):
-        # 找到最小距离的索引
-        idx = np.unravel_index(np.argmin(distances), distances.shape)
-        # 添加匹配对到列表
-        matches.append((idx[0], idx[1]))
-        # 将已匹配的点的距离设为无穷大，以避免重复匹配
-        distances[idx[0], :] = np.inf
-        distances[:, idx[1]] = np.inf
-
-    return np.asarray(matches)
-
-
-def find_nn_posAndFeat(points1, points2, feat1, feat2, pos_w, feat_w, k):
-    # 计算两个数组中所有点的距离矩阵
-    pos_dis = cdist(points1, points2)
-    feat_dis = cdist(feat1, feat2)
-    distances = pos_w * pos_dis + feat_w * feat_dis
-
     # 初始化匹配对列表
     matches = []
     # 找到最近邻匹配对
@@ -130,31 +107,6 @@ def pcd_visualize(point_collections: list[np.ndarray]):
     o3d.visualization.draw_geometries([merged_pcd])
 
 
-def find_nn_kdTree(src: np.ndarray, tgt: np.ndarray):
-    """
-    Find one-to-one correspondence between points in source and target point clouds to minimize the sum of Euclidean distances.
-
-    Parameters:
-        src (np.ndarray): Source point cloud, Nx3 array.
-        tgt (np.ndarray): Target point cloud, Mx3 array.
-
-    Returns:
-        src_indices (np.ndarray): Indices of corresponding points in the source cloud.
-        tgt_indices (np.ndarray): Indices of corresponding points in the target cloud.
-    """
-    # Build KD tree for the target point cloud
-    tree = cKDTree(tgt)
-
-    # Query the KD tree to find the nearest neighbors for each point in the source cloud
-    _, indices = tree.query(src, k=1)
-
-    # Return the indices of corresponding points
-    src_indices = np.arange(src.shape[0])
-    tgt_indices = np.asarray(indices.flatten())
-
-    return np.asarray([src_indices, tgt_indices])
-
-
 def com_loss(A, B):
     d = np.linalg.norm(A - B, axis=1)  # 计算每一行的距离
     sum_d = np.sum(d)
@@ -170,23 +122,19 @@ def sortAndShow(corr, s=True):
     print(f"tgt_idx: {corrIdx_[:, 1]}")
 
 
-def corrSubPcd(pcd1, pcd2):
+def findCorrSubPcd(pcd1, pcd2, threshold):
     """
     找对应的子点云
     先验：
         pcd1, pcd2 是有序的，根据 distance(pcd1_feature, pcd2_feature) 从小到大排序
         所以 pcd1[0] 和 pcd2[0] 极有可能是对应点
+
+    todo: 可以选择点的数量最大的子图
     """
     n = pcd1.shape[0]  # 也等于 pcd2.shape[0]
     dist1, dist2 = cdist(pcd1, pcd1), cdist(pcd2, pcd2)
 
-    threshold = 6e-3
-
     for i in range(n):
-        ne = n - i - 1
-        # for p in range(ne):
-        #     for q in range(ne):
-        #         dis_err[p, q] = abs(dist1[i, p + i + 1] - dist2[i, q + i + 1])
         dis_err = np.abs(dist1[i, i + 1 :] - dist2[i, i + 1 :])
         idx = np.where(dis_err < threshold)[0]
 
@@ -194,11 +142,5 @@ def corrSubPcd(pcd1, pcd2):
             idx = idx + i + 1
             idx = idx.astype(int)
             return np.insert(idx, 0, i)
-        # coordinates = np.vstack(np.where(dis_err < threshold)).T
-        # 如果大于0，这些对应点就是要找的点
-        # if coordinates.size() > 0:
-        #     # 有映射关系
-        #     coordinates = coordinates + i + 1
-        #     return coordinates
 
     return np.asarray([])
