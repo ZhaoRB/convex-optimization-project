@@ -71,7 +71,7 @@ def registration(
 
 def pointCloudRegistration(prefix, name, hyperparams):
     # 1. load data
-    pcds, infos = loadData(prefix, name)
+    pcds, infos = loadData(f"{prefix}/data/{name}-pcd", name)
 
     # 2. feature extraction
     # 注意：a.获取的是salient points的feature  b.每个feature是一个行向量
@@ -84,8 +84,6 @@ def pointCloudRegistration(prefix, name, hyperparams):
     tgt_pcd = pcdToNp(pcds[0])
     tgt_pcd_salient = tgt_pcd[infos[0]["all_idxs"]]
     tgt_salient_feature = salient_features[0]
-
-    reg_res = []
 
     for i in range(2):
         idx = i + 1
@@ -106,15 +104,21 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
         # visualization
         reg_pcd = (R @ src_pcd.T).T + t
-        pcd_visualize([src_pcd, reg_pcd, tgt_pcd])
+        # pcd_visualize([src_pcd, reg_pcd, tgt_pcd])
 
-    return reg_res
+        # save results
+        saveAsPly(
+            reg_pcd, f"{prefix}/result/{name}-registration/pcd-{idx+1}-registrated.ply"
+        )
+        saveVisibleResults(
+            [reg_pcd, tgt_pcd, src_pcd],
+            f"{prefix}/result/{name}-registration/pcd-{idx+1}.png",
+        )
 
 
 if __name__ == "__main__":
-    names = ["bunny", "room"]
-    # names = ["temple"]
-    prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
+    names = ["bunny", "room", "temple"]
+    prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/"
     hyperparams = {
         "bunny": {
             "fpfh": {
@@ -145,7 +149,5 @@ if __name__ == "__main__":
         },
     }
 
-    reg_res = []
-
     for idx, name in enumerate(names):
-        res = pointCloudRegistration(f"{prefix}/{name}-pcd", name, hyperparams[name])
+        pointCloudRegistration(prefix, name, hyperparams[name])

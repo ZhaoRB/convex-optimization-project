@@ -1,4 +1,3 @@
-import copy
 import json
 
 import matplotlib.pyplot as plt
@@ -40,34 +39,6 @@ def find_nn(points1, points2, k=None):
         distances[:, idx[1]] = np.inf
 
     return np.asarray(matches)
-
-
-def compare_pcd(pcds, labels=None, path=None):
-    if labels is None:
-        labels = ["Source", "Registrated", "Target"]
-
-    dpi = 80
-    fig = plt.figure(figsize=(1440 / dpi, 720 / dpi), dpi=dpi)
-    ax = fig.add_subplot(projection="3d")
-    ax.set_proj_type("persp")
-
-    for points, label in zip(pcds, labels):
-        ax.scatter(
-            points[:, 0],
-            points[:, 2],
-            points[:, 1],
-            marker=".",
-            alpha=0.5,
-            edgecolors="none",
-            label=label,
-        )
-
-    plt.legend()
-    plt.show()
-    #
-    # plt.clf()
-    if path is not None:
-        plt.savefig(f"./imgs/{path}.png")
 
 
 def pcdToNp(pointCloud):
@@ -115,3 +86,40 @@ def findCorrSubPcd(pcd1, pcd2, threshold):
             return np.insert(idx, 0, i)
 
     return np.asarray([])
+
+
+def saveAsPly(points: np.ndarray, path):
+    pcd = npToPcd(points)
+    o3d.io.write_point_cloud(path, pcd)
+
+
+def saveVisibleResults(pcds: list[np.ndarray], path=None, isVisible=False):
+    n = len(pcds)
+    labels = ["Registrated", "Target", "Source"]
+    colors = ["red", "blue", "green"]
+
+    # Create a 3D plot
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    # Plot the registered and target point clouds
+    for i in range(n):
+        ax.scatter(
+            pcds[i][:, 0],
+            pcds[i][:, 1],
+            pcds[i][:, 2],
+            c=colors[i],
+            label=labels[i],
+            s=0.1,
+        )
+
+    # Set labels and legend
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.legend()
+
+    if path is not None:
+        plt.savefig(path)
+    if isVisible:
+        plt.show()
