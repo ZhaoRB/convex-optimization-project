@@ -1,8 +1,11 @@
 # 暂时用不上的函数
+import copy
+
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
+from sklearn.neighbors import NearestNeighbors
+
 
 # 找到矩阵中最小的几个对应点
 def findMinInMatrix(matrix, num):
@@ -27,7 +30,7 @@ def findMinInMatrix(matrix, num):
         visited_row.add(mini[0])
         visited_col.add(mini[1])
         return np.array(idx1), np.array(idx2)
-    
+
 
 # 找最近邻 (这里src和tgt反了)
 def find_n(src, tgt):
@@ -57,6 +60,7 @@ def pro(lst, n):
             indices.append(i)
     return result, indices
 
+
 def find_nn_kdTree(src: np.ndarray, tgt: np.ndarray):
     """
     Find one-to-one correspondence between points in source and target point clouds to minimize the sum of Euclidean distances.
@@ -81,6 +85,7 @@ def find_nn_kdTree(src: np.ndarray, tgt: np.ndarray):
 
     return np.asarray([src_indices, tgt_indices])
 
+
 def find_nn_posAndFeat(points1, points2, feat1, feat2, pos_w, feat_w, k):
     # 计算两个数组中所有点的距离矩阵
     pos_dis = cdist(points1, points2)
@@ -100,3 +105,29 @@ def find_nn_posAndFeat(points1, points2, feat1, feat2, pos_w, feat_w, k):
         distances[:, idx[1]] = np.inf
 
     return np.asarray(matches)
+
+
+def sortAndShow(corr, s=True):
+    corrIdx_ = copy.deepcopy(corr)
+    if s:
+        sorted_indices = np.argsort(corrIdx_[:, 0])
+        corrIdx_ = corrIdx_[sorted_indices]
+    print(f"src_idx: {corrIdx_[:, 0]}")
+    print(f"tgt_idx: {corrIdx_[:, 1]}")
+
+
+def com_loss(A, B):
+    d = np.linalg.norm(A - B, axis=1)  # 计算每一行的距离
+    sum_d = np.sum(d)
+    return sum_d / len(A)
+
+# 计算欧式距离（特征 or 位置）+ 归一化
+def com_sim(srcMat: np.ndarray, tgtMat: np.ndarray):  # scrMat 33x33    tgtMat 36x33
+    m = srcMat.shape[0]
+    n = tgtMat.shape[0]
+    res = np.zeros((m, n))
+    for i in range(m):
+        for j in range(n):
+            res[i, j] = np.linalg.norm(srcMat[i, :] - tgtMat[j, :])
+    # 归一化
+    return res / np.amax(res)

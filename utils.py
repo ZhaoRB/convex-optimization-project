@@ -70,18 +70,6 @@ def compare_pcd(pcds, labels=None, path=None):
         plt.savefig(f"./imgs/{path}.png")
 
 
-# 计算欧式距离（特征 or 位置）+ 归一化
-def com_sim(srcMat: np.ndarray, tgtMat: np.ndarray):  # scrMat 33x33    tgtMat 36x33
-    m = srcMat.shape[0]
-    n = tgtMat.shape[0]
-    res = np.zeros((m, n))
-    for i in range(m):
-        for j in range(n):
-            res[i, j] = np.linalg.norm(srcMat[i, :] - tgtMat[j, :])
-    # 归一化
-    return res / np.amax(res)
-
-
 def pcdToNp(pointCloud):
     return np.asarray(pointCloud.points)
 
@@ -107,29 +95,12 @@ def pcd_visualize(point_collections: list[np.ndarray]):
     o3d.visualization.draw_geometries([merged_pcd])
 
 
-def com_loss(A, B):
-    d = np.linalg.norm(A - B, axis=1)  # 计算每一行的距离
-    sum_d = np.sum(d)
-    return sum_d / len(A)
-
-
-def sortAndShow(corr, s=True):
-    corrIdx_ = copy.deepcopy(corr)
-    if s:
-        sorted_indices = np.argsort(corrIdx_[:, 0])
-        corrIdx_ = corrIdx_[sorted_indices]
-    print(f"src_idx: {corrIdx_[:, 0]}")
-    print(f"tgt_idx: {corrIdx_[:, 1]}")
-
-
 def findCorrSubPcd(pcd1, pcd2, threshold):
     """
     找对应的子点云
     先验：
         pcd1, pcd2 是有序的，根据 distance(pcd1_feature, pcd2_feature) 从小到大排序
         所以 pcd1[0] 和 pcd2[0] 极有可能是对应点
-
-    todo: 可以选择点的数量最大的子图
     """
     n = pcd1.shape[0]  # 也等于 pcd2.shape[0]
     dist1, dist2 = cdist(pcd1, pcd1), cdist(pcd2, pcd2)

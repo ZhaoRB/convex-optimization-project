@@ -112,8 +112,8 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
 
 if __name__ == "__main__":
-    # names = ["bunny", "room", "temple"]
-    names = ["temple"]
+    names = ["bunny", "room"]
+    # names = ["temple"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/data/"
     hyperparams = {
         "bunny": {
