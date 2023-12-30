@@ -69,13 +69,14 @@ def pointCloudRegistration(prefix, name, hyperparams):
 
         # visualization
         reg_pcd = (R @ src_pcd.T).T + t
-        # visualize(
-        #     [reg_pcd, tgt_pcd], f"{prefix}/result/{name}-registration/pcd-{idx+1}.png"
-        # )
-        visualizeGif(
+        visualize(
             [reg_pcd, tgt_pcd],
-            # f"{prefix}/result/{name}-registration/pcd-{idx+1}.gif"
+            # f"{prefix}/result/{name}-registration/pcd-{idx+1}.png"
         )
+        # visualizeGif(
+        #     [reg_pcd, tgt_pcd],
+        #     # f"{prefix}/result/{name}-registration/pcd-{idx+1}.gif"
+        # )
 
         # save results
         # saveAsPly(

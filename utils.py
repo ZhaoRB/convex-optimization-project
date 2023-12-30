@@ -83,7 +83,7 @@ def saveVisibleResults(pcds: list[np.ndarray], path=None, isVisible=False):
         plt.show()
 
 
-def visualize(point_collections, savePath):
+def visualize(point_collections, savePath=None):
     colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     merged_pcd = o3d.geometry.PointCloud()
 
@@ -99,7 +99,8 @@ def visualize(point_collections, savePath):
     vis.create_window()
     vis.add_geometry(merged_pcd)
     vis.run()
-    vis.capture_screen_image(savePath)
+    if savePath != None:
+        vis.capture_screen_image(savePath)
     vis.destroy_window()
 
 
