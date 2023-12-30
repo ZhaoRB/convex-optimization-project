@@ -104,6 +104,7 @@ def visualize(point_collections, savePath=None):
     vis.destroy_window()
 
 
+# reference: http://www.open3d.org/docs/0.12.0/tutorial/visualization/non_blocking_visualization.html
 def visualizeGif(point_collections, savePath=None):
     colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     point_cloud = o3d.geometry.PointCloud()
