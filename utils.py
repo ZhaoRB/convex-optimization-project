@@ -158,20 +158,24 @@ def visualizeGif(point_collections, savePath):
 
     vis = o3d.visualization.Visualizer()
     vis.create_window()
+    vis.add_geometry(point_cloud)
 
-    # Define a custom rotation callback function
-    def rotate_view(vis):
-        ctr = vis.get_view_control()
-        ctr.rotate(10.0, 0.0)
-        return True  # Return False to stop the animation after one rotation
+    # 每次绕y轴旋转10度，获得旋转矩阵并扩展为4*4的transform矩阵
+    rotation_angle = 2
+    rotation_matrix = np.array([
+        [np.cos(np.radians(rotation_angle)), 0, np.sin(np.radians(rotation_angle))],
+        [0, 1, 0],
+        [-np.sin(np.radians(rotation_angle)), 0, np.cos(np.radians(rotation_angle))]
+    ])
+    transform_matrix = np.eye(4)
+    transform_matrix[:3, :3] = rotation_matrix
 
     images = []  # List to store individual frames
 
     # Perform the rotation directly
-    for _ in range(36):  # 36 frames for a full rotation (adjust as needed)
-        vis.add_geometry(point_cloud)
-        rotate_view(vis)
-        vis.update_geometry(point_cloud)  # Pass the geometry to update
+    for _ in range(180):  # 36 frames for a full rotation (adjust as needed)
+        point_cloud.transform(transform_matrix)
+        vis.update_geometry(point_cloud)
         vis.poll_events()
         vis.update_renderer()
 
@@ -180,9 +184,7 @@ def visualizeGif(point_collections, savePath):
         images.append(image)  # Convert to uint8
 
     # Write GIF using Open3D's write_gif function
-    imageio.mimsave(savePath, images, fps=10)
-
-    vis.run()
+    imageio.mimsave(savePath, images, fps=45)
 
     # Destroy the window
     vis.destroy_window()
