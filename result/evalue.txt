@@ -1,0 +1,18 @@
+Base point cloud loaded from './data/bunny-pcd/bunny-pcd-1.ply'
+Registered point cloud loaded from './result/bunny-registration/pcd-2-registrated.ply'
+CD:  0.00918
+Base point cloud loaded from './data/bunny-pcd/bunny-pcd-1.ply'
+Registered point cloud loaded from './result/bunny-registration/pcd-3-registrated.ply'
+CD:  0.00782
+Base point cloud loaded from './data/room-pcd/room-pcd-1.ply'
+Registered point cloud loaded from './result/room-registration/pcd-2-registrated.ply'
+CD:  0.18209
+Base point cloud loaded from './data/room-pcd/room-pcd-1.ply'
+Registered point cloud loaded from './result/room-registration/pcd-3-registrated.ply'
+CD:  0.18124
+Base point cloud loaded from './data/temple-pcd/temple-pcd-1.ply'
+Registered point cloud loaded from './result/temple-registration/pcd-2-registrated.ply'
+CD:  0.06734
+Base point cloud loaded from './data/temple-pcd/temple-pcd-1.ply'
+Registered point cloud loaded from './result/temple-registration/pcd-3-registrated.ply'
+CD:  0.22752

@@ -4,6 +4,7 @@ Point cloud metrics:
 """
 import configargparse
 import point_cloud_utils as pcu
+import sys
 
 def get_args():
     parser = configargparse.ArgumentParser()
@@ -14,9 +15,15 @@ def get_args():
 
 if __name__ == "__main__":
     opts = get_args()
-    print(f"Base point cloud loaded from '{opts.pcd_1}'")
-    print(f"Registered point cloud loaded from '{opts.pcd_2}'")
     p1 = pcu.load_mesh_v(opts.pcd_1)
     p2 = pcu.load_mesh_v(opts.pcd_2)
     cd = pcu.chamfer_distance(p1, p2)
-    print(f"CD:  {cd:.5f}")
+
+    with open('./result/evalue.txt', 'a') as f:
+        original_stdout = sys.stdout
+        sys.stdout = f
+        print(f"Base point cloud loaded from '{opts.pcd_1}'")
+        print(f"Registered point cloud loaded from '{opts.pcd_2}'")
+        print(f"CD:  {cd:.5f}")
+        sys.stdout = original_stdout
+
