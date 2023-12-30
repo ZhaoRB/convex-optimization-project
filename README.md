@@ -9,4 +9,8 @@
     |---- featureExtraction         函数使用fpfh算法提取特征
     |---- find_nn, findCorrSubPcd   函数都是feature matching所用到的方法
 ----utils.py
+----evalue.py
+----data    原数据
+----result  结果
+    |---- result_cd.txt     量化指标 chamfer distance
 ```
