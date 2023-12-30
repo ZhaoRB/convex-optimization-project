@@ -105,19 +105,26 @@ def pointCloudRegistration(prefix, name, hyperparams):
         # visualization
         reg_pcd = (R @ src_pcd.T).T + t
         # pcd_visualize([src_pcd, reg_pcd, tgt_pcd])
+        # visualize(
+        #     [reg_pcd, tgt_pcd], f"{prefix}/result/{name}-registration/pcd-{idx+1}.png"
+        # )
+        visualizeGif(
+            [reg_pcd, tgt_pcd], f"{prefix}/result/{name}-registration/pcd-{idx+1}.gif"
+        )
 
         # save results
-        saveAsPly(
-            reg_pcd, f"{prefix}/result/{name}-registration/pcd-{idx+1}-registrated.ply"
-        )
-        saveVisibleResults(
-            [reg_pcd, tgt_pcd, src_pcd],
-            f"{prefix}/result/{name}-registration/pcd-{idx+1}.png",
-        )
+        # saveAsPly(
+        #     reg_pcd, f"{prefix}/result/{name}-registration/pcd-{idx+1}-registrated.ply"
+        # )
+        # saveVisibleResults(
+        #     [reg_pcd, tgt_pcd, src_pcd],
+        #     f"{prefix}/result/{name}-registration/pcd-{idx+1}.png",
+        # )
 
 
 if __name__ == "__main__":
-    names = ["bunny", "room", "temple"]
+    # names = ["bunny", "room", "temple"]
+    names = ["bunny"]
     prefix = "/Users/riverzhao/Documents/研一/convex optimization/project/code/src/"
     hyperparams = {
         "bunny": {

@@ -1,5 +1,6 @@
 import json
 
+import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import open3d as o3d
@@ -123,3 +124,65 @@ def saveVisibleResults(pcds: list[np.ndarray], path=None, isVisible=False):
         plt.savefig(path)
     if isVisible:
         plt.show()
+
+
+def visualize(point_collections, savePath):
+    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    merged_pcd = o3d.geometry.PointCloud()
+
+    for i, points in enumerate(point_collections):
+        # create PointCloud object & convert ndarray to points
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        # set color
+        pcd.paint_uniform_color(colors[i])
+        merged_pcd += pcd
+
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry(merged_pcd)
+    vis.run()
+    vis.capture_screen_image(savePath)
+    vis.destroy_window()
+
+
+def visualizeGif(point_collections, savePath):
+    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    point_cloud = o3d.geometry.PointCloud()
+
+    for i, points in enumerate(point_collections):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.paint_uniform_color(colors[i])
+        point_cloud += pcd
+
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+
+    # Define a custom rotation callback function
+    def rotate_view(vis):
+        ctr = vis.get_view_control()
+        ctr.rotate(10.0, 0.0)
+        return True  # Return False to stop the animation after one rotation
+
+    images = []  # List to store individual frames
+
+    # Perform the rotation directly
+    for _ in range(36):  # 36 frames for a full rotation (adjust as needed)
+        vis.add_geometry(point_cloud)
+        rotate_view(vis)
+        vis.update_geometry(point_cloud)  # Pass the geometry to update
+        vis.poll_events()
+        vis.update_renderer()
+
+        # Capture the screen image
+        image = np.asarray(vis.capture_screen_float_buffer(), dtype=np.uint8) * 255
+        images.append(image)  # Convert to uint8
+
+    # Write GIF using Open3D's write_gif function
+    imageio.mimsave(savePath, images, fps=10)
+
+    vis.run()
+
+    # Destroy the window
+    vis.destroy_window()
